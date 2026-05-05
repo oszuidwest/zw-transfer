@@ -1,0 +1,94 @@
+name: Check Pingvin Share X Release
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 6 * * *"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: check-pingvin-release
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Get current Pingvin Share X version
+        id: current-version
+        run: |
+          CURRENT_VERSION="$(grep -oP 'ghcr.io/smp46/pingvin-share-x:\Kv[0-9.]+' docker-compose.yml)"
+          echo "Current version: ${CURRENT_VERSION}"
+          echo "version=${CURRENT_VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Get latest Pingvin Share X version
+        id: latest-version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          LATEST_VERSION="$(gh api repos/smp46/pingvin-share-x/releases/latest --jq '.tag_name')"
+          echo "Latest version: ${LATEST_VERSION}"
+          echo "version=${LATEST_VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Compare versions
+        id: compare
+        run: |
+          CURRENT_VERSION="${{ steps.current-version.outputs.version }}"
+          LATEST_VERSION="${{ steps.latest-version.outputs.version }}"
+
+          if [ "$CURRENT_VERSION" != "$LATEST_VERSION" ]; then
+            echo "Update needed from ${CURRENT_VERSION} to ${LATEST_VERSION}"
+            echo "update_needed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No update needed"
+            echo "update_needed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Update docker-compose.yml
+        if: steps.compare.outputs.update_needed == 'true'
+        run: |
+          CURRENT_VERSION="${{ steps.current-version.outputs.version }}"
+          LATEST_VERSION="${{ steps.latest-version.outputs.version }}"
+
+          sed -i "s|ghcr.io/smp46/pingvin-share-x:${CURRENT_VERSION}|ghcr.io/smp46/pingvin-share-x:${LATEST_VERSION}|g" docker-compose.yml
+
+      - name: Regenerate email patch
+        if: steps.compare.outputs.update_needed == 'true'
+        run: ./scripts/regenerate-email-patch.sh
+
+      - name: Validate Compose
+        if: steps.compare.outputs.update_needed == 'true'
+        run: docker compose --env-file .env.example config >/tmp/zw-transfer.compose.yml
+
+      - name: Open pull request
+        if: steps.compare.outputs.update_needed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.latest-version.outputs.version }}
+        run: |
+          branch="automation/pingvin-share-x-${VERSION}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B "$branch"
+          git add docker-compose.yml patches/email.service.js
+          git commit -m "chore(deps): update Pingvin Share X to ${VERSION}"
+          git push --force origin "$branch"
+
+          existing="$(gh pr list --head "$branch" --state open --json number --jq '.[0].number // empty')"
+          if [ -n "$existing" ]; then
+            echo "Pull request #${existing} already exists"
+            exit 0
+          fi
+
+          gh pr create \
+            --title "Update Pingvin Share X to ${VERSION}" \
+            --body "Updates the pinned Pingvin Share X image to ${VERSION} and validates the Docker Compose configuration." \
+            --base "${GITHUB_REF_NAME}" \
+            --head "$branch"

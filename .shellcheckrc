@@ -1,0 +1,2 @@
+# Allow sourcing the shared installer helper library at runtime.
+disable=SC1091

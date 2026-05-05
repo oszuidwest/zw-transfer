@@ -1,0 +1,11 @@
+.DS_Store
+.env
+*.tar.gz
+data/pingvin-share.db*
+data/images/
+data/uploads/
+data/*.backup-*
+data/.DS_Store
+
+*.md
+!README.md

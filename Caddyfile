@@ -1,0 +1,15 @@
+{$APP_HOSTNAME} {
+	header X-Robots-Tag "noindex, nofollow, noarchive"
+	@oauth_unlink {
+		method POST
+		path /api/oauth/unlink/*
+	}
+	respond @oauth_unlink "SSO unlinking is disabled." 403
+	@totp_api {
+		path /api/auth/totp/*
+	}
+	respond @totp_api "TOTP is disabled for SSO-only login." 403
+	redir /auth/signIn /api/oauth/auth/oidc 302
+	encode zstd gzip
+	reverse_proxy pingvin:3000
+}

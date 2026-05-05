@@ -1,0 +1,103 @@
+---
+name: Docker Security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "0 4 * * 0"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v6
+
+      - name: Read image references
+        id: images
+        run: |
+          PINGVIN_IMAGE="$(awk '/image: ghcr.io\/smp46\/pingvin-share-x:/ { print $2; exit }' docker-compose.yml)"
+          CADDY_IMAGE="$(awk '/image: caddy:/ { print $2; exit }' docker-compose.yml)"
+
+          echo "pingvin=${PINGVIN_IMAGE}" >> "$GITHUB_OUTPUT"
+          echo "caddy=${CADDY_IMAGE}" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Trivy DB
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/trivy
+          key: trivy-db
+          restore-keys: |
+            trivy-db
+
+      - name: Trivy SARIF Report for Pingvin Share X
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ steps.images.outputs.pingvin }}
+          format: "sarif"
+          output: "trivy-pingvin-share-x.sarif"
+          severity: "CRITICAL,HIGH,MEDIUM"
+          scanners: "vuln,secret"
+          ignore-unfixed: true
+          exit-code: "0"
+          limit-severities-for-sarif: true
+
+      - name: Upload Pingvin Share X Trivy Results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: "trivy-pingvin-share-x.sarif"
+          category: "container-pingvin-share-x"
+
+      - name: Critical Pingvin Share X Summary
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ steps.images.outputs.pingvin }}
+          format: "table"
+          severity: "CRITICAL"
+          scanners: "vuln,secret"
+          ignore-unfixed: true
+          exit-code: "0"
+
+      - name: Trivy SARIF Report for Caddy
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ steps.images.outputs.caddy }}
+          format: "sarif"
+          output: "trivy-caddy.sarif"
+          severity: "CRITICAL,HIGH,MEDIUM"
+          scanners: "vuln,secret"
+          vuln-type: "os"
+          ignore-unfixed: true
+          exit-code: "0"
+          limit-severities-for-sarif: true
+
+      - name: Upload Caddy Trivy Results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: "trivy-caddy.sarif"
+          category: "container-caddy"
+
+      - name: Critical Caddy Summary
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ steps.images.outputs.caddy }}
+          format: "table"
+          severity: "CRITICAL"
+          scanners: "vuln,secret"
+          vuln-type: "os"
+          ignore-unfixed: true
+          exit-code: "0"
