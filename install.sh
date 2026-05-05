@@ -28,51 +28,6 @@ assert_tool "curl"
 assert_tool "tar"
 assert_tool "docker"
 
-prompt_required() {
-  local var_name="$1"
-  local prompt="$2"
-  local var_type="${3:-str}"
-  local input
-
-  if [[ -n "${!var_name:-}" ]]; then
-    input="${!var_name}"
-    if ! is_valid "$input" "$var_type" "$var_name"; then
-      echo "Error: Invalid value for $var_name. Exiting script."
-      exit 1
-    fi
-  else
-    while true; do
-      read -r -p "${prompt}: " input
-      if is_valid "$input" "$var_type" "$var_name"; then
-        break
-      fi
-    done
-  fi
-
-  printf -v "$var_name" '%s' "$input"
-}
-
-prompt_secret_required() {
-  local var_name="$1"
-  local prompt="$2"
-  local input
-
-  if [[ -n "${!var_name:-}" ]]; then
-    input="${!var_name}"
-  else
-    while true; do
-      read -r -s -p "${prompt}: " input
-      echo
-      if [[ -n "$input" ]]; then
-        break
-      fi
-      echo "Invalid value for $var_name. Expected a non-empty string."
-    done
-  fi
-
-  printf -v "$var_name" '%s' "$input"
-}
-
 CONTAINER_NAMES=("zw-transfer-caddy" "zw-transfer")
 
 containers_running() {
@@ -152,10 +107,10 @@ if [ "$KEEP_CONFIG" == "n" ]; then
   prompt_user "SMTP_PORT" "587" "SMTP port" "str"
   prompt_required "SMTP_EMAIL" "SMTP sender address" "email"
   prompt_user "SMTP_USERNAME" "$SMTP_EMAIL" "SMTP username" "str"
-  prompt_secret_required "SMTP_PASSWORD" "SMTP password"
+  prompt_secret "SMTP_PASSWORD" "SMTP password"
   prompt_required "OIDC_DISCOVERY_URI" "OIDC discovery URI" "str"
   prompt_required "OIDC_CLIENT_ID" "OIDC client ID" "str"
-  prompt_secret_required "OIDC_CLIENT_SECRET" "OIDC client secret"
+  prompt_secret "OIDC_CLIENT_SECRET" "OIDC client secret"
   prompt_user "OIDC_USERNAME_CLAIM" "name" "OIDC username claim" "str"
 fi
 
