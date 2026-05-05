@@ -145,18 +145,13 @@ else
 fi
 
 if [ "$KEEP_CONFIG" == "n" ]; then
-  prompt_user "APP_NAME" "ZuidWest Transfer" "Application name" "str"
   prompt_required "APP_HOSTNAME" "Public hostname" "host"
-  APP_URL="https://${APP_HOSTNAME}"
   prompt_required "SMTP_HOST" "SMTP host" "host"
-  prompt_user "SMTP_PORT" "587" "SMTP port" "str"
   prompt_required "SMTP_EMAIL" "SMTP sender address" "email"
-  prompt_user "SMTP_USERNAME" "$SMTP_EMAIL" "SMTP username" "str"
   prompt_secret_required "SMTP_PASSWORD" "SMTP password"
   prompt_required "OIDC_DISCOVERY_URI" "OIDC discovery URI" "str"
   prompt_required "OIDC_CLIENT_ID" "OIDC client ID" "str"
   prompt_secret_required "OIDC_CLIENT_SECRET" "OIDC client secret"
-  prompt_user "OIDC_USERNAME_CLAIM" "name" "OIDC username claim" "str"
 fi
 
 set_timezone Europe/Amsterdam
@@ -193,21 +188,16 @@ else
 # Compose defaults provide everything else; see .env.example for available knobs.
 
 APP_HOSTNAME=${APP_HOSTNAME}
-APP_NAME=${APP_NAME}
-APP_URL=${APP_URL}
 
 SMTP_ENABLED=true
 SMTP_HOST=${SMTP_HOST}
-SMTP_PORT=${SMTP_PORT}
 SMTP_EMAIL=${SMTP_EMAIL}
-SMTP_USERNAME=${SMTP_USERNAME}
 SMTP_PASSWORD=${SMTP_PASSWORD}
 
 OIDC_ENABLED=true
 OIDC_DISCOVERY_URI=${OIDC_DISCOVERY_URI}
 OIDC_CLIENT_ID=${OIDC_CLIENT_ID}
 OIDC_CLIENT_SECRET=${OIDC_CLIENT_SECRET}
-OIDC_USERNAME_CLAIM=${OIDC_USERNAME_CLAIM}
 EOF
 fi
 
