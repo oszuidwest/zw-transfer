@@ -6,7 +6,7 @@ An opinionated, SSO-only Docker Compose deployment of [Pingvin Share X](https://
 
 - Working directory: `/opt/zw-transfer/`
 - `docker-compose.yml` is the single source of truth for defaults — every Pingvin setting is interpolated from `${VAR:-default}` expressions there.
-- `.env` only carries deployment-specific deltas (hostname, app name, SMTP credentials, OIDC credentials, plus the two enable flags). See `.env.example` for the full list.
+- `.env` only carries deployment-specific deltas (hostname, SMTP credentials, OIDC credentials, plus the two enable flags). See `.env.example` for the full list.
 - All other Pingvin knobs (CSS overrides, share limits, OIDC scope, init user, etc.) fall through to compose defaults. To override one, look up the variable in `docker-compose.yml` and add it to `.env`.
 - Persistent state: Pingvin data in volume `zw-transfer-pingvin-data`; Caddy data and config in `zw-transfer-caddy-data` / `zw-transfer-caddy-config`.
 - Caddy terminates TLS on 80/443 with automatic Let's Encrypt and reverse-proxies to Pingvin on `127.0.0.1:3000`.
@@ -24,7 +24,7 @@ An opinionated, SSO-only Docker Compose deployment of [Pingvin Share X](https://
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/oszuidwest/zw-transfer/main/install.sh)"
 ```
 
-The installer downloads the deployment files into `/opt/zw-transfer`, prompts for hostname / app name / SMTP / OIDC credentials, writes `.env`, gracefully stops any running stack, pulls images, starts the containers, and verifies they are healthy. Re-running it on an existing install offers to keep the existing `.env` untouched.
+The installer downloads the deployment files into `/opt/zw-transfer`, prompts for hostname / SMTP / OIDC credentials, writes `.env`, gracefully stops any running stack, pulls images, starts the containers, and verifies they are healthy. Re-running it on an existing install offers to keep the existing `.env` untouched.
 
 ### Manual mode
 

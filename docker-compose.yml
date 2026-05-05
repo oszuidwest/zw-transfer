@@ -68,7 +68,7 @@ configs:
     content: |
       general:
         appName: "${APP_NAME:-ZuidWest Transfer}"
-        appUrl: "${APP_URL:-https://transfer.example.org}"
+        appUrl: "${APP_URL:-https://${APP_HOSTNAME:-transfer.example.org}}"
         secureCookies: "${SECURE_COOKIES:-true}"
         showHomePage: "${SHOW_HOME_PAGE:-false}"
         sessionDuration: "${SESSION_DURATION:-3 months}"
@@ -99,7 +99,7 @@ configs:
         host: "${SMTP_HOST:-smtp.example.org}"
         port: "${SMTP_PORT:-587}"
         email: "${SMTP_EMAIL:-transfer@example.org}"
-        username: "${SMTP_USERNAME:-transfer@example.org}"
+        username: "${SMTP_USERNAME:-${SMTP_EMAIL:-transfer@example.org}}"
         password: "${SMTP_PASSWORD:-}"
 
       oauth:
