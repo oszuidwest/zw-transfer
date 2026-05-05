@@ -5,9 +5,9 @@ An opinionated, SSO-only Docker Compose deployment of [Pingvin Share X](https://
 ## Conventions
 
 - Working directory: `/opt/zw-transfer/`
-- `docker-compose.yml` is the single source of truth for defaults — every Pingvin setting is interpolated from `${VAR:-default}` expressions there.
-- `.env` only carries deployment-specific deltas (hostname, SMTP credentials, OIDC credentials, plus the two enable flags). See `.env.example` for the full list.
-- All other Pingvin knobs (CSS overrides, share limits, OIDC scope, init user, etc.) fall through to compose defaults. To override one, look up the variable in `docker-compose.yml` and add it to `.env`.
+- `docker-compose.yml` is the source of truth: deployment-variable settings (hostname, branding, SMTP, OIDC) are interpolated from `${VAR:-default}` expressions; opinionated baselines (custom CSS, Dutch email templates, SSO-only enforcement, 1 TB share size, registration off) are hardcoded in the `configs:` block.
+- `.env` only carries deployment-specific deltas (hostname, SMTP credentials, OIDC credentials, plus the two enable flags). See `.env.example` for the exhaustive list of overrideable knobs.
+- To deviate from a hardcoded baseline (e.g. enable home page, raise/lower share limit, change email copy), edit the `configs:` block in `docker-compose.yml` directly.
 - Persistent state: Pingvin data in volume `zw-transfer-pingvin-data`; Caddy data and config in `zw-transfer-caddy-data` / `zw-transfer-caddy-config`.
 - Caddy terminates TLS on 80/443 with automatic Let's Encrypt and reverse-proxies to Pingvin on `127.0.0.1:3000`.
 - A handful of hardcoded English strings in Pingvin's compiled email backend are not exposed via YAML; they are translated to Dutch (and the share-recipient template is folded into one running sentence) by bind-mounting `patches/email.service.js` over the container's copy. The file is generated from `patches/email.service.patch` by `scripts/regenerate-email-patch.sh` and re-emitted by CI on every image bump.
