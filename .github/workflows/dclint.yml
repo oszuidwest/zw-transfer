@@ -6,9 +6,15 @@ on:
       - main
     paths:
       - "docker-compose.yml"
+      - ".env.example"
+      - "scripts/validate-pingvin-config.sh"
+      - ".github/workflows/dclint.yml"
   pull_request:
     paths:
       - "docker-compose.yml"
+      - ".env.example"
+      - "scripts/validate-pingvin-config.sh"
+      - ".github/workflows/dclint.yml"
 
 permissions:
   contents: read
@@ -31,3 +37,6 @@ jobs:
 
       - name: Run DCLint
         run: dclint .
+
+      - name: Validate rendered Pingvin config
+        run: ./scripts/validate-pingvin-config.sh

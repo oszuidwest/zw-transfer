@@ -64,7 +64,7 @@ jobs:
 
       - name: Validate Compose
         if: steps.compare.outputs.update_needed == 'true'
-        run: docker compose --env-file .env.example config >/tmp/zw-transfer.compose.yml
+        run: ./scripts/validate-pingvin-config.sh
 
       - name: Open pull request
         if: steps.compare.outputs.update_needed == 'true'
