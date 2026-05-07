@@ -140,7 +140,7 @@ else
   echo -e "${BLUE}►► Writing .env configuration${NC}"
   cat > "$ENV_FILE" <<EOF
 # Deployment-specific overrides written by install.sh.
-# Compose defaults provide everything else; see .env.example for available knobs.
+# Compose defaults provide everything else; see docker-compose.yml for supported overrides.
 
 APP_HOSTNAME=${APP_HOSTNAME}
 

@@ -37,13 +37,13 @@ docker compose --env-file .env config
 docker compose --env-file .env up -d
 ```
 
-Set `SMTP_PASSWORD` in `.env` before starting. `APP_NAME`, `APP_URL`, `SMTP_PORT`, `SMTP_USERNAME` and `OIDC_USERNAME_CLAIM` have defaults but can be added to `.env` when needed. For SSO, create an OIDC client with this redirect URI:
+Fill every blank value in `.env` before starting: `APP_HOSTNAME`, `SMTP_HOST`, `SMTP_EMAIL`, `SMTP_PASSWORD`, `OIDC_DISCOVERY_URI`, `OIDC_CLIENT_ID`, and `OIDC_CLIENT_SECRET`. `APP_NAME`, `APP_URL`, `SMTP_PORT`, `SMTP_USERNAME` and `OIDC_USERNAME_CLAIM` have defaults but can be added to `.env` when needed. For SSO, create an OIDC client with this redirect URI:
 
 ```text
 https://transfer.example.org/api/oauth/callback/oidc
 ```
 
-Then set `OIDC_DISCOVERY_URI`, `OIDC_CLIENT_ID`, and `OIDC_CLIENT_SECRET` in `.env`.
+Then set the OIDC values in `.env`.
 
 ## Operations
 
@@ -75,6 +75,6 @@ The pinned Pingvin Share X image is updated by `.github/workflows/check-pingvin-
 
 The Compose stack uses `no-new-privileges` for the application containers. Caddy drops all Linux capabilities except `NET_BIND_SERVICE`, which it needs to bind ports 80 and 443. The `Docker Security` workflow scans the Pingvin Share X and Caddy images from `docker-compose.yml` with Trivy and uploads high/critical SARIF results to GitHub Security. Pingvin is scanned for OS and application dependencies; Caddy is scanned for OS packages only, because this repo does not build the Caddy Go binary. The workflow reports upstream image findings without blocking deployments.
 
-SSO-only is enforced both at the application (`OAUTH_DISABLE_PASSWORD=true`, `SHARE_ALLOW_REGISTRATION=false`) and at the proxy: Caddy redirects `/auth/signIn` to the OpenID flow, blocks OAuth unlink requests, blocks TOTP endpoints, and adds an `X-Robots-Tag` noindex header. Do not override password, registration or TOTP-related defaults without updating the Caddy policy at the same time.
+SSO-only is enforced both at the application (`OAUTH_DISABLE_PASSWORD=true`, `SHARE_ALLOW_REGISTRATION=false`, `OAUTH_IGNORE_TOTP=true`) and at the proxy: Caddy redirects `/auth/signIn` to the OpenID flow, blocks OAuth unlink requests, blocks TOTP endpoints, and adds an `X-Robots-Tag` noindex header. Do not override password, registration or TOTP-related defaults without updating the Caddy policy at the same time.
 
 For mail deliverability, keep DKIM enabled at the mail provider and use a strict SPF record for the sending domain. With one mailbox provider as the only sender, `v=spf1 mx -all` is preferred over a neutral `?all` policy.
