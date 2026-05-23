@@ -1,21 +1,21 @@
 --- a/email.service.js
 +++ b/email.service.js
-@@ -54,12 +54,14 @@
+@@ -55,6 +55,8 @@
          const shareUrl = `${this.config.get("general.appUrl")}/s/${shareId}`;
+         const lang = "";
+         const locale = this.i18n.translate("email.locale", { lang });
 +        const trimmedDesc = (description ?? "").trim().replace(/\.+$/, "");
 +        const descBlock = trimmedDesc ? ` en dit bericht werd toegevoegd: "${trimmedDesc}".` : ".";
          await this.sendMail(recipientEmail, this.config.get("email.shareRecipientsSubject"), this.config
              .get("email.shareRecipientsMessage")
              .replaceAll("\\n", "\n")
--            .replaceAll("{creator}", creator?.username ?? "Someone")
-+            .replaceAll("{creator}", creator?.username ?? "Iemand")
+@@ -65,9 +67,10 @@
              .replaceAll("{creatorEmail}", creator?.email ?? "")
              .replaceAll("{shareUrl}", shareUrl)
--            .replaceAll("{desc}", description ?? "No description")
+             .replaceAll("{desc}", description ?? this.i18n.t("email.shareRecipientsDescFallback"))
 +            .replaceAll("{descBlock}", descBlock)
              .replaceAll("{expires}", moment(expiration).unix() != 0
--            ? moment(expiration).fromNow()
--            : "in: never"));
-+            ? moment(expiration).locale("nl").fromNow()
+             ? moment(expiration).locale(locale).fromNow()
+-            : this.i18n.t("email.shareRecipientsExpiresNeverFallback")));
 +            : "nooit"));
      }

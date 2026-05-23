@@ -28,7 +28,7 @@ services:
       - no-new-privileges:true
 
   pingvin:
-    image: ghcr.io/smp46/pingvin-share-x:v1.17.0
+    image: ghcr.io/smp46/pingvin-share-x:v1.18.0
     container_name: zw-transfer
     volumes:
       - pingvin_data:/opt/app/backend/data
@@ -72,6 +72,7 @@ configs:
         secureCookies: "${SECURE_COOKIES:-true}"
         showHomePage: "${SHOW_HOME_PAGE:-false}"
         sessionDuration: "${SESSION_DURATION:-3 months}"
+        defaultLanguage: "${DEFAULT_LANGUAGE:-nl-BE}"
 
       appearance:
         customCss: "${CUSTOM_CSS:-footer, div[data-with-border=true]:has(input[type=password]), div[data-with-border=true]:has([id*=-tab-totp]), div[data-with-border=true]:has([id*=-tab-oidc]), .mantine-Group-root:has(input[placeholder=myAwesomeShare]), .mantine-Group-root:has(input[placeholder=myAwesomeShare]) + .mantine-Text-root { display: none !important; } [id*=-panel-recipients] { display: block !important; height: auto !important; overflow: visible !important; } [id*=-panel-recipients] > div { opacity: 1 !important; }}"

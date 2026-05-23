@@ -3,14 +3,12 @@
 # Regenerate patches/email.service.js by extracting the compiled email.service.js
 # from the pinned Pingvin Share X image and applying patches/email.service.patch.
 #
-# The patch:
-#   - Translates the four hardcoded English fallback strings to Dutch
-#     ("Someone" -> "Iemand", expires "in: never" -> "nooit", and switches the
-#     moment.js locale per-call to render "7 days" as "7 dagen").
-#   - Replaces the {desc} placeholder substitution with a {descBlock} variant
-#     that folds a non-empty description into the surrounding sentence
-#     (' en dit bericht werd toegevoegd: "..."'), or otherwise just closes
-#     the sentence with a period.
+# The generated file is bind-mounted over Pingvin's compiled email service to
+# support this deployment's share-recipient template:
+#   - {descBlock} expands to ' en dit bericht werd toegevoegd: "...".' when a
+#     share description exists, or to '.' when it does not.
+#   - Shares without an expiration date render {expires} as "nooit", so the
+#     template sentence reads "De link verloopt nooit."
 #
 # Run this whenever the image tag in docker-compose.yml is bumped.
 
@@ -51,8 +49,8 @@ patch --no-backup-if-mismatch -d "$TMP_DIR" -p1 -i "$PATCH_FILE"
 mkdir -p "$(dirname "$OUTPUT_FILE")"
 cp "${TMP_DIR}/email.service.js" "$OUTPUT_FILE"
 
-# Belt-and-suspenders: confirm both the new strings and the descBlock
-# scaffolding actually landed, and that nothing English slipped through.
+# Belt-and-suspenders: confirm the local descBlock/nooit behavior actually
+# landed, while preserving upstream i18n fallback handling.
 verify_present() {
   local needle="$1"
   if ! grep -qF -- "$needle" "$OUTPUT_FILE"; then
@@ -71,14 +69,15 @@ verify_absent() {
 
 verify_present 'const trimmedDesc = (description ?? "").trim()'
 verify_present 'en dit bericht werd toegevoegd:'
-verify_present '?? "Iemand"'
+verify_present 'this.i18n.t("email.shareRecipientsCreatorFallback")'
+verify_present '.replaceAll("{desc}", description ?? this.i18n.t("email.shareRecipientsDescFallback"))'
 verify_present '.replaceAll("{descBlock}", descBlock)'
-verify_present 'moment(expiration).locale("nl").fromNow()'
-verify_present '"nooit"'
+verify_present 'moment(expiration).locale(locale).fromNow()'
+verify_present ': "nooit"));'
 
 verify_absent '?? "Someone"'
 verify_absent '?? "No description"'
 verify_absent '"in: never"'
-verify_absent '.replaceAll("{desc}",'
+verify_absent 'this.i18n.t("email.shareRecipientsExpiresNeverFallback")'
 
 echo "Wrote patched file to: $OUTPUT_FILE"

@@ -14,15 +14,17 @@ exports.EmailService = void 0;
 const common_1 = require("@nestjs/common");
 const moment = require("moment");
 const nodemailer = require("nodemailer");
+const nestjs_i18n_1 = require("nestjs-i18n");
 const config_service_1 = require("../config/config.service");
 let EmailService = EmailService_1 = class EmailService {
-    constructor(config) {
+    constructor(config, i18n) {
         this.config = config;
+        this.i18n = i18n;
         this.logger = new common_1.Logger(EmailService_1.name);
     }
     getTransporter() {
         if (!this.config.get("smtp.enabled"))
-            throw new common_1.InternalServerErrorException("SMTP is disabled");
+            throw new common_1.InternalServerErrorException(this.i18n.t("email.smtpDisabled"));
         const username = this.config.get("smtp.username");
         const password = this.config.get("smtp.password");
         return nodemailer.createTransport({
@@ -45,24 +47,28 @@ let EmailService = EmailService_1 = class EmailService {
         })
             .catch((e) => {
             this.logger.error(e);
-            throw new common_1.InternalServerErrorException("Failed to send email");
+            throw new common_1.InternalServerErrorException(this.i18n.t("email.sendFailed"));
         });
     }
     async sendMailToShareRecipients(recipientEmail, shareId, creator, description, expiration) {
         if (!this.config.get("email.enableShareEmailRecipients"))
-            throw new common_1.InternalServerErrorException("Email service disabled");
+            throw new common_1.InternalServerErrorException(this.i18n.t("email.emailServiceDisabled"));
         const shareUrl = `${this.config.get("general.appUrl")}/s/${shareId}`;
+        const lang = "";
+        const locale = this.i18n.translate("email.locale", { lang });
         const trimmedDesc = (description ?? "").trim().replace(/\.+$/, "");
         const descBlock = trimmedDesc ? ` en dit bericht werd toegevoegd: "${trimmedDesc}".` : ".";
         await this.sendMail(recipientEmail, this.config.get("email.shareRecipientsSubject"), this.config
             .get("email.shareRecipientsMessage")
             .replaceAll("\\n", "\n")
-            .replaceAll("{creator}", creator?.username ?? "Iemand")
+            .replaceAll("{creator}", creator?.username ??
+            this.i18n.t("email.shareRecipientsCreatorFallback"))
             .replaceAll("{creatorEmail}", creator?.email ?? "")
             .replaceAll("{shareUrl}", shareUrl)
+            .replaceAll("{desc}", description ?? this.i18n.t("email.shareRecipientsDescFallback"))
             .replaceAll("{descBlock}", descBlock)
             .replaceAll("{expires}", moment(expiration).unix() != 0
-            ? moment(expiration).locale("nl").fromNow()
+            ? moment(expiration).locale(locale).fromNow()
             : "nooit"));
     }
     async sendMailToReverseShareCreator(recipientEmail, shareId) {
@@ -88,12 +94,14 @@ let EmailService = EmailService_1 = class EmailService {
             .replaceAll("{email}", recipientEmail));
     }
     async sendTestMail(recipientEmail) {
+        const subject = this.i18n.t("email.testSubject");
+        const text = this.i18n.t("email.testText");
         await this.getTransporter()
             .sendMail({
             from: `"${this.config.get("general.appName")}" <${this.config.get("smtp.email")}>`,
             to: recipientEmail,
-            subject: "Test email",
-            text: "This is a test email",
+            subject,
+            text,
         })
             .catch((e) => {
             this.logger.error(e);
@@ -104,6 +112,7 @@ let EmailService = EmailService_1 = class EmailService {
 exports.EmailService = EmailService;
 exports.EmailService = EmailService = EmailService_1 = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [config_service_1.ConfigService])
+    __metadata("design:paramtypes", [config_service_1.ConfigService,
+        nestjs_i18n_1.I18nService])
 ], EmailService);
 //# sourceMappingURL=email.service.js.map

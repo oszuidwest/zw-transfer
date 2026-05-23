@@ -10,7 +10,7 @@ An opinionated, SSO-only Docker Compose deployment of [Pingvin Share X](https://
 - All other Pingvin knobs (CSS overrides, share limits, OIDC scope, init user, etc.) fall through to compose defaults. To override one, look up the variable in `docker-compose.yml` and add it to `.env`.
 - Persistent state: Pingvin data in volume `zw-transfer-pingvin-data`; Caddy data and config in `zw-transfer-caddy-data` / `zw-transfer-caddy-config`.
 - Caddy terminates TLS on 80/443 with automatic Let's Encrypt and reverse-proxies to Pingvin on `127.0.0.1:3000`.
-- A handful of hardcoded English strings in Pingvin's compiled email backend are not exposed via YAML; they are translated to Dutch (and the share-recipient template is folded into one running sentence) by bind-mounting `patches/email.service.js` over the container's copy. The file is generated from `patches/email.service.patch` by `scripts/regenerate-email-patch.sh` and re-emitted by CI on every image bump.
+- Pingvin's backend language is set to Dutch via `general.defaultLanguage`, so backend-generated e-mail fallbacks and relative expiry text use Dutch. The bind-mounted `patches/email.service.js` adds a deployment-specific `{descBlock}` placeholder for the share-recipient e-mail template: it appends an optional share description as one running Dutch sentence and renders shares without an expiration date as `nooit`. The file is generated from `patches/email.service.patch` by `scripts/regenerate-email-patch.sh` and re-emitted by CI on every image bump.
 
 ## How to use
 
