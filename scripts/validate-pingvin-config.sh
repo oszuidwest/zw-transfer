@@ -36,6 +36,7 @@ COMPOSE_ENV_VARS=(
   SECURE_COOKIES
   SHOW_HOME_PAGE
   SESSION_DURATION
+  DEFAULT_LANGUAGE
   CUSTOM_CSS
   SHARE_ALLOW_REGISTRATION
   SHARE_ALLOW_UNAUTHENTICATED_SHARES
@@ -133,6 +134,7 @@ string_paths = [
   %w[general secureCookies],
   %w[general showHomePage],
   %w[general sessionDuration],
+  %w[general defaultLanguage],
   %w[appearance customCss],
   %w[share allowRegistration],
   %w[share allowUnauthenticatedShares],
