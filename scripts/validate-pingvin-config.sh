@@ -76,6 +76,14 @@ COMPOSE_ENV_VARS=(
   INIT_USER_PASSWORD
   INIT_USER_IS_ADMIN
   INIT_USER_LDAP_DN
+  S3_ENABLED
+  S3_ENDPOINT
+  S3_REGION
+  S3_BUCKET_NAME
+  S3_BUCKET_PATH
+  S3_KEY
+  S3_SECRET
+  S3_USE_CHECKSUM
 )
 
 render_compose_config() {
@@ -171,7 +179,15 @@ string_paths = [
   %w[initUser username],
   %w[initUser email],
   %w[initUser password],
-  %w[initUser ldapDN]
+  %w[initUser ldapDN],
+  %w[s3 enabled],
+  %w[s3 endpoint],
+  %w[s3 region],
+  %w[s3 bucketName],
+  %w[s3 bucketPath],
+  %w[s3 key],
+  %w[s3 secret],
+  %w[s3 useChecksum]
 ]
 
 string_paths.each do |category, key|

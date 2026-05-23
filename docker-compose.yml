@@ -124,3 +124,13 @@ configs:
         password: "${INIT_USER_PASSWORD:-}"
         isAdmin: ${INIT_USER_IS_ADMIN:-true}
         ldapDN: "${INIT_USER_LDAP_DN:-}"
+
+      s3:
+        enabled: "${S3_ENABLED:-false}"
+        endpoint: "${S3_ENDPOINT:-}"
+        region: "${S3_REGION:-}"
+        bucketName: "${S3_BUCKET_NAME:-}"
+        bucketPath: "${S3_BUCKET_PATH:-}"
+        key: "${S3_KEY:-}"
+        secret: "${S3_SECRET:-}"
+        useChecksum: "${S3_USE_CHECKSUM:-true}"

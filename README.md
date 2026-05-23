@@ -67,6 +67,20 @@ docker compose --env-file .env config
 
 The validation script renders Compose, extracts `configs.pingvin_config.content`, parses it as YAML, and checks the Pingvin-specific type expectations that are easy to break: application booleans must stay quoted strings, while `initUser.enabled` and `initUser.isAdmin` must stay real YAML booleans.
 
+## Storage
+
+By default Pingvin stores uploaded files in the `pingvin_data` Docker volume.
+
+S3-compatible object storage is supported by upstream and exposed through the same `.env` contract. Set `S3_ENABLED=true` plus the bucket/credential values listed in `.env.example` to route file content to S3. The `pingvin_data` volume still holds the SQLite database and session state regardless.
+
+Caveats:
+
+- Multi-file ZIP downloads are disabled by upstream when S3 is on. Recipients have to download each file separately. For a transfer-style workflow that often means single big files, this is usually fine; for many-file shares it is a real UX cost.
+- The bucket MUST be private. Pingvin streams downloads through its own backend rather than issuing signed URLs, so a publicly readable bucket would leak shares.
+- Enabling S3 only affects new uploads. Files that already live in `pingvin_data` keep being served from there.
+- No CORS or bucket lifecycle policy is required. Pingvin deletes objects itself when a share expires or is removed.
+- For Backblaze B2 and some other non-AWS providers, set `S3_USE_CHECKSUM=false`.
+
 ## Version updates
 
 The pinned Pingvin Share X image is updated by `.github/workflows/check-pingvin-release.yml`. The workflow checks the current tag in `docker-compose.yml`, fetches the latest GitHub release for `smp46/pingvin-share-x`, updates the Compose file when needed, regenerates `patches/email.service.js` against the new image via `scripts/regenerate-email-patch.sh`, validates the rendered Pingvin config via `scripts/validate-pingvin-config.sh`, and opens a pull request.
