@@ -64,7 +64,7 @@ The pinned Pingvin Share X image is updated by `.github/workflows/check-pingvin-
 
 ## Security
 
-The Compose stack uses `no-new-privileges` for the application containers. Caddy drops all Linux capabilities except `NET_BIND_SERVICE`, which it needs to bind ports 80 and 443. The `Docker Security` workflow scans the Pingvin Share X and Caddy images from `docker-compose.yml` with Trivy and uploads SARIF results to GitHub Security. Pingvin is scanned for OS and application dependencies; Caddy is scanned for OS packages only, because this repo does not build the Caddy Go binary. The workflow reports upstream image findings without blocking deployments.
+The Compose stack uses `no-new-privileges` for the application containers. Caddy drops all Linux capabilities except `NET_BIND_SERVICE`, which it needs to bind ports 80 and 443. The `Docker Security` workflow scans the Pingvin Share X and Caddy images from `docker-compose.yml` with Trivy and uploads high/critical SARIF results to GitHub Security. Pingvin is scanned for OS and application dependencies; Caddy is scanned for OS packages only, because this repo does not build the Caddy Go binary. The workflow reports upstream image findings without blocking deployments.
 
 SSO-only is enforced both at the application (`OAUTH_DISABLE_PASSWORD=true`, `SHARE_ALLOW_REGISTRATION=false`) and at the proxy: Caddy redirects `/auth/signIn` to the OpenID flow, blocks OAuth unlink requests, blocks TOTP endpoints, and adds an `X-Robots-Tag` noindex header.
 

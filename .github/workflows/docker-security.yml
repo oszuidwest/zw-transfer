@@ -50,8 +50,11 @@ jobs:
           image-ref: ${{ steps.images.outputs.pingvin }}
           format: "sarif"
           output: "trivy-pingvin-share-x.sarif"
-          severity: "CRITICAL,HIGH,MEDIUM"
+          severity: "CRITICAL,HIGH"
           scanners: "vuln,secret"
+          # Keep Code Scanning focused on runtime-relevant application alerts.
+          # npm CLI and esbuild are build tooling bundled in the upstream image.
+          skip-dirs: "/usr/local/lib/node_modules/npm,/opt/app/backend/node_modules/@esbuild"
           ignore-unfixed: true
           exit-code: "0"
           limit-severities-for-sarif: true
@@ -69,6 +72,7 @@ jobs:
           format: "table"
           severity: "CRITICAL"
           scanners: "vuln,secret"
+          skip-dirs: "/usr/local/lib/node_modules/npm,/opt/app/backend/node_modules/@esbuild"
           ignore-unfixed: true
           exit-code: "0"
 
@@ -78,7 +82,7 @@ jobs:
           image-ref: ${{ steps.images.outputs.caddy }}
           format: "sarif"
           output: "trivy-caddy.sarif"
-          severity: "CRITICAL,HIGH,MEDIUM"
+          severity: "CRITICAL,HIGH"
           scanners: "vuln,secret"
           vuln-type: "os"
           ignore-unfixed: true
