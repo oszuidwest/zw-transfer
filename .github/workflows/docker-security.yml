@@ -9,20 +9,15 @@ name: Docker Security
     - cron: "0 4 * * 0"
   workflow_dispatch:
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
 permissions:
   contents: read
   security-events: write
 
 jobs:
-  security-scan:
-    name: Security scan
+  images:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-
+    outputs:
+      images-json: ${{ steps.images.outputs.images-json }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -43,75 +38,37 @@ jobs:
               docker-compose.yml
           )"
 
-          echo "pingvin=${PINGVIN_IMAGE}" >> "$GITHUB_OUTPUT"
-          echo "caddy=${CADDY_IMAGE}" >> "$GITHUB_OUTPUT"
+          if [ -z "$PINGVIN_IMAGE" ] || [ -z "$CADDY_IMAGE" ]; then
+            echo "::error::Could not find required image references."
+            exit 1
+          fi
 
-      - name: Trivy SARIF report for Pingvin Share X
-        if: >-
-          github.event_name != 'pull_request' &&
-          github.event.repository.private == false
-        uses: aquasecurity/trivy-action@v0.36.0
-        with:
-          image-ref: ${{ steps.images.outputs.pingvin }}
-          format: sarif
-          output: trivy-pingvin-share-x.sarif
-          severity: CRITICAL,HIGH
-          scanners: vuln,secret
-          ignore-unfixed: true
-          exit-code: "0"
-          limit-severities-for-sarif: true
+          images_json="$(
+            jq -cn \
+              --arg pingvin "$PINGVIN_IMAGE" \
+              --arg caddy "$CADDY_IMAGE" \
+              '[
+                {
+                  name: "Pingvin Share X",
+                  image: $pingvin,
+                  category: "container-pingvin-share-x",
+                  pkg_types: "os,library"
+                },
+                {
+                  name: "Caddy",
+                  image: $caddy,
+                  category: "container-caddy",
+                  pkg_types: "os"
+                }
+              ]'
+          )"
 
-      - name: Upload Pingvin SARIF
-        if: >-
-          github.event_name != 'pull_request' &&
-          github.event.repository.private == false
-        uses: github/codeql-action/upload-sarif@v4
-        with:
-          sarif_file: trivy-pingvin-share-x.sarif
-          category: container-pingvin-share-x
+          echo "images-json=${images_json}" >> "$GITHUB_OUTPUT"
 
-      - name: Trivy high/critical summary for Pingvin
-        uses: aquasecurity/trivy-action@v0.36.0
-        with:
-          image-ref: ${{ steps.images.outputs.pingvin }}
-          format: table
-          severity: CRITICAL,HIGH
-          scanners: vuln,secret
-          ignore-unfixed: true
-          exit-code: "0"
-
-      - name: Trivy SARIF report for Caddy
-        if: >-
-          github.event_name != 'pull_request' &&
-          github.event.repository.private == false
-        uses: aquasecurity/trivy-action@v0.36.0
-        with:
-          image-ref: ${{ steps.images.outputs.caddy }}
-          format: sarif
-          output: trivy-caddy.sarif
-          severity: CRITICAL,HIGH
-          scanners: vuln,secret
-          vuln-type: os
-          ignore-unfixed: true
-          exit-code: "0"
-          limit-severities-for-sarif: true
-
-      - name: Upload Caddy SARIF
-        if: >-
-          github.event_name != 'pull_request' &&
-          github.event.repository.private == false
-        uses: github/codeql-action/upload-sarif@v4
-        with:
-          sarif_file: trivy-caddy.sarif
-          category: container-caddy
-
-      - name: Trivy high/critical summary for Caddy
-        uses: aquasecurity/trivy-action@v0.36.0
-        with:
-          image-ref: ${{ steps.images.outputs.caddy }}
-          format: table
-          severity: CRITICAL,HIGH
-          scanners: vuln,secret
-          vuln-type: os
-          ignore-unfixed: true
-          exit-code: "0"
+  security:
+    needs: images
+    uses: oszuidwest/.github-templates/.github/workflows/docker-security-images.yml@main  # yamllint disable-line rule:line-length
+    with:
+      images-json: ${{ needs.images.outputs.images-json }}
+      event-name: ${{ github.event_name }}
+      repository-private: ${{ github.event.repository.private }}
