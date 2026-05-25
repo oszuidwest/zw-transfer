@@ -79,6 +79,7 @@ jobs:
           git checkout -B "$branch"
           git add docker-compose.yml patches/email.service.js
           git commit -m "chore(deps): update Pingvin Share X to ${VERSION}"
+          git fetch origin "$branch:refs/remotes/origin/$branch" || true
           git push --force-with-lease origin "$branch"
 
           existing="$(gh pr list --head "$branch" --state open --json number --jq '.[0].number // empty')"

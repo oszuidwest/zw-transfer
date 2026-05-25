@@ -24,7 +24,7 @@ An opinionated, SSO-only Docker Compose deployment of [Pingvin Share X](https://
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/oszuidwest/zw-transfer/main/install.sh)"
 ```
 
-The installer downloads the deployment files into `/opt/zw-transfer`, prompts for hostname / SMTP / OIDC credentials, writes `.env`, gracefully stops any running stack, pulls images, starts the containers, and verifies they are healthy. Re-running it on an existing install offers to keep the existing `.env` untouched.
+The installer downloads the deployment files into `/opt/zw-transfer`, prompts for hostname / SMTP / OIDC credentials, writes `.env`, pulls images, gracefully stops any running stack, starts the containers, and checks that the containers are running. Re-running it on an existing install offers to keep the existing `.env` untouched.
 
 ### Manual mode
 
