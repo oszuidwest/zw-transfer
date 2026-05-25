@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+set -euo pipefail
+
 FUNCTIONS_LIB_URL="https://raw.githubusercontent.com/oszuidwest/bash-functions/main/common-functions.sh"
 REPO_ARCHIVE_URL="https://github.com/oszuidwest/zw-transfer/archive/refs/heads/main.tar.gz"
 
@@ -30,6 +32,24 @@ assert_tool "docker"
 
 CONTAINER_NAMES=("zw-transfer-caddy" "zw-transfer")
 
+dotenv_quote() {
+  local value="$1"
+  local escaped_quote="\\'"
+  # Values are interpolated into double-quoted YAML inside docker-compose.yml.
+  # Single-quote the dotenv value to stop Compose from expanding $ in secrets.
+  value="${value//\\/\\\\}"
+  value="${value//\"/\\\"}"
+  value="${value//\'/$escaped_quote}"
+  printf "'%s'" "$value"
+}
+
+write_env_var() {
+  local key="$1"
+  local value="$2"
+
+  printf "%s=%s\n" "$key" "$(dotenv_quote "$value")"
+}
+
 containers_running() {
   local name
   for name in "${CONTAINER_NAMES[@]}"; do
@@ -52,7 +72,7 @@ stop_existing_stack() {
   done
 }
 
-verify_services_running() {
+verify_containers_running() {
   sleep 3
   local failed=0
   local name status
@@ -68,7 +88,7 @@ verify_services_running() {
   return "$failed"
 }
 
-clear
+clear || true
 
 echo -e "${GREEN}ZuidWest Transfer deployment installer${NC}\n"
 
@@ -93,25 +113,23 @@ fi
 
 prompt_user "DO_UPDATES" "y" "Perform OS updates? (y/n)" "y/n"
 
-if [ "$EXISTING_INSTALL" == "y" ]; then
+if [ "$EXISTING_INSTALL" == "y" ] && [ -f "$ENV_FILE" ]; then
   prompt_user "KEEP_CONFIG" "y" "Keep existing .env configuration? (y/n)" "y/n"
 else
+  if [ "$EXISTING_INSTALL" == "y" ]; then
+    echo -e "${YELLOW}Existing deployment files found, but no .env exists yet. A new .env will be written.${NC}\n"
+  fi
   KEEP_CONFIG="n"
 fi
 
 if [ "$KEEP_CONFIG" == "n" ]; then
-  prompt_user "APP_NAME" "ZuidWest Transfer" "Application name" "str"
   prompt_required "APP_HOSTNAME" "Public hostname" "host"
-  APP_URL="https://${APP_HOSTNAME}"
   prompt_required "SMTP_HOST" "SMTP host" "host"
-  prompt_user "SMTP_PORT" "587" "SMTP port" "str"
   prompt_required "SMTP_EMAIL" "SMTP sender address" "email"
-  prompt_user "SMTP_USERNAME" "$SMTP_EMAIL" "SMTP username" "str"
   prompt_secret "SMTP_PASSWORD" "SMTP password"
   prompt_required "OIDC_DISCOVERY_URI" "OIDC discovery URI" "str"
   prompt_required "OIDC_CLIENT_ID" "OIDC client ID" "str"
   prompt_secret "OIDC_CLIENT_SECRET" "OIDC client secret"
-  prompt_user "OIDC_USERNAME_CLAIM" "name" "OIDC username claim" "str"
 fi
 
 set_timezone Europe/Amsterdam
@@ -143,27 +161,24 @@ if [ "$KEEP_CONFIG" == "y" ] && [ -f "$ENV_FILE" ]; then
   echo -e "${BLUE}►► Keeping existing .env${NC}"
 else
   echo -e "${BLUE}►► Writing .env configuration${NC}"
-  cat > "$ENV_FILE" <<EOF
+  {
+    cat <<'EOF'
 # Deployment-specific overrides written by install.sh.
-# Compose defaults provide everything else; see .env.example for available knobs.
+# Compose defaults provide everything else; see docker-compose.yml for supported overrides.
 
-APP_HOSTNAME=${APP_HOSTNAME}
-APP_NAME=${APP_NAME}
-APP_URL=${APP_URL}
-
-SMTP_ENABLED=true
-SMTP_HOST=${SMTP_HOST}
-SMTP_PORT=${SMTP_PORT}
-SMTP_EMAIL=${SMTP_EMAIL}
-SMTP_USERNAME=${SMTP_USERNAME}
-SMTP_PASSWORD=${SMTP_PASSWORD}
-
-OIDC_ENABLED=true
-OIDC_DISCOVERY_URI=${OIDC_DISCOVERY_URI}
-OIDC_CLIENT_ID=${OIDC_CLIENT_ID}
-OIDC_CLIENT_SECRET=${OIDC_CLIENT_SECRET}
-OIDC_USERNAME_CLAIM=${OIDC_USERNAME_CLAIM}
 EOF
+    write_env_var "APP_HOSTNAME" "$APP_HOSTNAME"
+    printf "\n"
+    write_env_var "SMTP_ENABLED" "true"
+    write_env_var "SMTP_HOST" "$SMTP_HOST"
+    write_env_var "SMTP_EMAIL" "$SMTP_EMAIL"
+    write_env_var "SMTP_PASSWORD" "$SMTP_PASSWORD"
+    printf "\n"
+    write_env_var "OIDC_ENABLED" "true"
+    write_env_var "OIDC_DISCOVERY_URI" "$OIDC_DISCOVERY_URI"
+    write_env_var "OIDC_CLIENT_ID" "$OIDC_CLIENT_ID"
+    write_env_var "OIDC_CLIENT_SECRET" "$OIDC_CLIENT_SECRET"
+  } > "$ENV_FILE"
 fi
 
 chmod 600 "$ENV_FILE"
@@ -174,25 +189,27 @@ prompt_user "START_SERVICES" "y" "Start deployment now? (y/n)" "y/n"
 if [ "$START_SERVICES" == "y" ]; then
   cd "$INSTALL_DIR" || exit
   echo -e "${BLUE}►► Validating Docker Compose configuration${NC}"
-  docker compose --env-file .env config >/tmp/zw-transfer.compose.yml
+  docker compose --env-file .env config -q
+  "${EXTRACT_DIR}/scripts/validate-pingvin-config.sh" .env
+
+  echo -e "${BLUE}►► Pulling images${NC}"
+  docker compose --env-file .env pull
 
   if [ "$EXISTING_INSTALL" == "y" ] || containers_running; then
     echo -e "${BLUE}►► Stopping existing containers${NC}"
     stop_existing_stack
   fi
 
-  echo -e "${BLUE}►► Pulling images${NC}"
-  docker compose --env-file .env pull
-
   echo -e "${BLUE}►► Starting containers${NC}"
   docker compose --env-file .env up -d
 
-  echo -e "${BLUE}►► Verifying service health${NC}"
-  if verify_services_running; then
-    echo -e "${GREEN}✓ All services are up${NC}"
-  else
-    echo -e "${YELLOW}⚠ Some services did not start cleanly. Check 'docker compose logs'.${NC}"
+  echo -e "${BLUE}►► Checking container runtime state${NC}"
+  if ! verify_containers_running; then
+    echo -e "${RED}*** Some containers are not running. Check 'docker compose logs'. ***${NC}"
+    docker compose --env-file .env ps || true
+    exit 1
   fi
+  echo -e "${GREEN}✓ All containers are running${NC}"
 
   echo -e "${BLUE}►► Container status${NC}"
   docker compose --env-file .env ps
