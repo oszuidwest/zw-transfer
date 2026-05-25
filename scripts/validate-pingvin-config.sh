@@ -76,7 +76,52 @@ COMPOSE_ENV_VARS=(
   INIT_USER_PASSWORD
   INIT_USER_IS_ADMIN
   INIT_USER_LDAP_DN
+  S3_ENABLED
+  S3_ENDPOINT
+  S3_REGION
+  S3_BUCKET_NAME
+  S3_BUCKET_PATH
+  S3_KEY
+  S3_SECRET
+  S3_USE_CHECKSUM
 )
+
+assert_compose_env_vars_current() {
+  local script_path="$1"
+
+  ruby - "$script_path" <<'RUBY'
+require "yaml"
+
+script_path = ARGV.fetch(0)
+
+begin
+  compose = YAML.safe_load(File.read("docker-compose.yml"), aliases: true)
+  content = compose.fetch("configs").fetch("pingvin_config").fetch("content")
+rescue Psych::Exception => e
+  abort "ERROR: failed to parse docker-compose.yml while checking COMPOSE_ENV_VARS: #{e.message}"
+rescue KeyError => e
+  abort "ERROR: docker-compose.yml no longer contains configs.pingvin_config.content: #{e.message}"
+end
+
+compose_vars = content.scan(/\$\{([A-Za-z_][A-Za-z0-9_]*)(?=[-:}])/).flatten.uniq.sort
+
+script = File.read(script_path)
+vars_block = script[/^COMPOSE_ENV_VARS=\(\n(.*?)^\)/m, 1]
+abort "ERROR: failed to locate COMPOSE_ENV_VARS in #{script_path}" unless vars_block
+
+listed_vars = vars_block.scan(/^\s*([A-Z][A-Z0-9_]*)\s*$/).flatten.uniq.sort
+
+missing = compose_vars - listed_vars
+extra = listed_vars - compose_vars
+
+unless missing.empty? && extra.empty?
+  messages = []
+  messages << "missing from COMPOSE_ENV_VARS: #{missing.join(", ")}" unless missing.empty?
+  messages << "not used by pingvin_config: #{extra.join(", ")}" unless extra.empty?
+  abort "ERROR: COMPOSE_ENV_VARS is out of sync with docker-compose.yml pingvin_config tokens (#{messages.join("; ")})"
+end
+RUBY
+}
 
 render_compose_config() {
   local env_file="$1"
@@ -94,6 +139,7 @@ validate_rendered_config() {
 
   ruby - "$compose_json" "$scenario" <<'RUBY'
 require "json"
+require "uri"
 require "yaml"
 
 compose_json, scenario = ARGV
@@ -171,12 +217,66 @@ string_paths = [
   %w[initUser username],
   %w[initUser email],
   %w[initUser password],
-  %w[initUser ldapDN]
+  %w[initUser ldapDN],
+  %w[s3 enabled],
+  %w[s3 endpoint],
+  %w[s3 region],
+  %w[s3 bucketName],
+  %w[s3 bucketPath],
+  %w[s3 key],
+  %w[s3 secret],
+  %w[s3 useChecksum]
 ]
 
 string_paths.each do |category, key|
   value = fetch_path(config, scenario, category, key)
   fail!(scenario, "#{category}.#{key} must render as a YAML string, got #{value.class}") unless value.is_a?(String)
+end
+
+s3_boolean_paths = [
+  %w[s3 enabled],
+  %w[s3 useChecksum]
+]
+
+# Pingvin config-file booleans are stored as strings and parsed with
+# `value == "true"`; any other spelling silently becomes false.
+s3_boolean_paths.each do |category, key|
+  value = fetch_path(config, scenario, category, key)
+  unless %w[true false].include?(value)
+    fail!(scenario, "#{category}.#{key} must be exactly \"true\" or \"false\", got #{value.inspect}")
+  end
+end
+
+s3_enabled = fetch_path(config, scenario, "s3", "enabled")
+if s3_enabled == "true"
+  required_s3_paths = [
+    %w[s3 endpoint],
+    %w[s3 region],
+    %w[s3 bucketName],
+    %w[s3 key],
+    %w[s3 secret]
+  ]
+
+  required_s3_paths.each do |category, key|
+    value = fetch_path(config, scenario, category, key)
+    fail!(scenario, "#{category}.#{key} must not be empty when s3.enabled is true") if value.strip.empty?
+  end
+
+  endpoint = fetch_path(config, scenario, "s3", "endpoint")
+  begin
+    endpoint_uri = URI.parse(endpoint)
+  rescue URI::InvalidURIError
+    endpoint_uri = nil
+  end
+
+  unless endpoint_uri.is_a?(URI::HTTP) && endpoint_uri.host && !endpoint_uri.host.empty?
+    fail!(scenario, "s3.endpoint must be a full HTTP(S) URL when s3.enabled is true, got #{endpoint.inspect}")
+  end
+
+  bucket_path = fetch_path(config, scenario, "s3", "bucketPath")
+  if bucket_path.start_with?("/") || bucket_path.end_with?("/")
+    fail!(scenario, "s3.bucketPath must not start or end with a slash, got #{bucket_path.inspect}")
+  end
 end
 
 boolean_paths = [
@@ -209,6 +309,18 @@ elsif scenario == "explicit-smtp-username"
     %w[smtp username] => "smtp-login@example.test"
   }
   contains_expectations = {}
+elsif scenario == "s3-enabled"
+  expectations = {
+    %w[s3 enabled] => "true",
+    %w[s3 endpoint] => "https://s3.eu-central-1.amazonaws.com",
+    %w[s3 region] => "eu-central-1",
+    %w[s3 bucketName] => "zw-transfer-test",
+    %w[s3 bucketPath] => "shares",
+    %w[s3 key] => "dummy-access-key",
+    %w[s3 secret] => "dummy-secret-key",
+    %w[s3 useChecksum] => "false"
+  }
+  contains_expectations = {}
 else
   expectations = {}
   contains_expectations = {}
@@ -235,18 +347,52 @@ fi
 
 assert_tool docker
 assert_tool ruby
+assert_compose_env_vars_current "${BASH_SOURCE[0]}"
 
 BASE_CONFIG_JSON="$(make_temp)"
 DERIVED_ENV="$(make_temp)"
 DERIVED_CONFIG_JSON="$(make_temp)"
 EXPLICIT_SMTP_ENV="$(make_temp)"
 EXPLICIT_SMTP_CONFIG_JSON="$(make_temp)"
+S3_ENABLED_ENV="$(make_temp)"
+S3_ENABLED_CONFIG_JSON="$(make_temp)"
 BROKEN_ENV="$(make_temp)"
 BROKEN_CONFIG_JSON="$(make_temp)"
 BROKEN_LOG="$(make_temp)"
 BROKEN_ADMIN_ENV="$(make_temp)"
 BROKEN_ADMIN_CONFIG_JSON="$(make_temp)"
 BROKEN_ADMIN_LOG="$(make_temp)"
+BROKEN_S3_ENABLED_ENV="$(make_temp)"
+BROKEN_S3_ENABLED_CONFIG_JSON="$(make_temp)"
+BROKEN_S3_ENABLED_LOG="$(make_temp)"
+BROKEN_S3_CHECKSUM_ENV="$(make_temp)"
+BROKEN_S3_CHECKSUM_CONFIG_JSON="$(make_temp)"
+BROKEN_S3_CHECKSUM_LOG="$(make_temp)"
+BROKEN_S3_REQUIRED_ENV="$(make_temp)"
+BROKEN_S3_REQUIRED_CONFIG_JSON="$(make_temp)"
+BROKEN_S3_REQUIRED_LOG="$(make_temp)"
+BROKEN_S3_BUCKET_PATH_ENV="$(make_temp)"
+BROKEN_S3_BUCKET_PATH_CONFIG_JSON="$(make_temp)"
+BROKEN_S3_BUCKET_PATH_LOG="$(make_temp)"
+
+assert_validation_fails() {
+  local config_json="$1"
+  local scenario="$2"
+  local expected_message="$3"
+  local log_file="$4"
+
+  # Self-tests match stable substrings from this script's own validation errors.
+  if validate_rendered_config "$config_json" "$scenario" >"$log_file" 2>&1; then
+    echo "ERROR: $scenario validation scenario unexpectedly passed" >&2
+    exit 1
+  fi
+
+  if ! grep -Fq "$expected_message" "$log_file"; then
+    cat "$log_file" >&2
+    echo "ERROR: $scenario validation scenario failed for the wrong reason" >&2
+    exit 1
+  fi
+}
 
 render_compose_config "$ENV_FILE" "$BASE_CONFIG_JSON"
 validate_rendered_config "$BASE_CONFIG_JSON" "base"
@@ -271,36 +417,71 @@ EOF
 render_compose_config "$EXPLICIT_SMTP_ENV" "$EXPLICIT_SMTP_CONFIG_JSON"
 validate_rendered_config "$EXPLICIT_SMTP_CONFIG_JSON" "explicit-smtp-username"
 
+cat >"$S3_ENABLED_ENV" <<'EOF'
+S3_ENABLED=true
+S3_ENDPOINT=https://s3.eu-central-1.amazonaws.com
+S3_REGION=eu-central-1
+S3_BUCKET_NAME=zw-transfer-test
+S3_BUCKET_PATH=shares
+S3_KEY=dummy-access-key
+S3_SECRET=dummy-secret-key
+S3_USE_CHECKSUM=false
+EOF
+
+render_compose_config "$S3_ENABLED_ENV" "$S3_ENABLED_CONFIG_JSON"
+validate_rendered_config "$S3_ENABLED_CONFIG_JSON" "s3-enabled"
+
 cat >"$BROKEN_ENV" <<'EOF'
 INIT_USER_ENABLED=maybe
 EOF
 
 render_compose_config "$BROKEN_ENV" "$BROKEN_CONFIG_JSON"
-if validate_rendered_config "$BROKEN_CONFIG_JSON" "negative-init-user" >"$BROKEN_LOG" 2>&1; then
-  echo "ERROR: negative validation scenario unexpectedly passed" >&2
-  exit 1
-fi
-
-if ! grep -q "initUser.enabled" "$BROKEN_LOG"; then
-  cat "$BROKEN_LOG" >&2
-  echo "ERROR: negative validation scenario failed for the wrong reason" >&2
-  exit 1
-fi
+assert_validation_fails "$BROKEN_CONFIG_JSON" "negative-init-user" "initUser.enabled" "$BROKEN_LOG"
 
 cat >"$BROKEN_ADMIN_ENV" <<'EOF'
 INIT_USER_IS_ADMIN=maybe
 EOF
 
 render_compose_config "$BROKEN_ADMIN_ENV" "$BROKEN_ADMIN_CONFIG_JSON"
-if validate_rendered_config "$BROKEN_ADMIN_CONFIG_JSON" "negative-init-user-admin" >"$BROKEN_ADMIN_LOG" 2>&1; then
-  echo "ERROR: negative admin validation scenario unexpectedly passed" >&2
-  exit 1
-fi
+assert_validation_fails "$BROKEN_ADMIN_CONFIG_JSON" "negative-init-user-admin" "initUser.isAdmin" "$BROKEN_ADMIN_LOG"
 
-if ! grep -q "initUser.isAdmin" "$BROKEN_ADMIN_LOG"; then
-  cat "$BROKEN_ADMIN_LOG" >&2
-  echo "ERROR: negative admin validation scenario failed for the wrong reason" >&2
-  exit 1
-fi
+cat >"$BROKEN_S3_ENABLED_ENV" <<'EOF'
+S3_ENABLED=yes
+EOF
+
+render_compose_config "$BROKEN_S3_ENABLED_ENV" "$BROKEN_S3_ENABLED_CONFIG_JSON"
+assert_validation_fails "$BROKEN_S3_ENABLED_CONFIG_JSON" "negative-s3-enabled" "s3.enabled must be exactly" "$BROKEN_S3_ENABLED_LOG"
+
+cat >"$BROKEN_S3_CHECKSUM_ENV" <<'EOF'
+S3_USE_CHECKSUM=on
+EOF
+
+render_compose_config "$BROKEN_S3_CHECKSUM_ENV" "$BROKEN_S3_CHECKSUM_CONFIG_JSON"
+assert_validation_fails "$BROKEN_S3_CHECKSUM_CONFIG_JSON" "negative-s3-checksum" "s3.useChecksum must be exactly" "$BROKEN_S3_CHECKSUM_LOG"
+
+cat >"$BROKEN_S3_REQUIRED_ENV" <<'EOF'
+S3_ENABLED=true
+S3_ENDPOINT=
+S3_REGION=
+S3_BUCKET_NAME=
+S3_KEY=
+S3_SECRET=
+EOF
+
+render_compose_config "$BROKEN_S3_REQUIRED_ENV" "$BROKEN_S3_REQUIRED_CONFIG_JSON"
+assert_validation_fails "$BROKEN_S3_REQUIRED_CONFIG_JSON" "negative-s3-required-fields" "s3.endpoint must not be empty" "$BROKEN_S3_REQUIRED_LOG"
+
+cat >"$BROKEN_S3_BUCKET_PATH_ENV" <<'EOF'
+S3_ENABLED=true
+S3_ENDPOINT=https://s3.eu-central-1.amazonaws.com
+S3_REGION=eu-central-1
+S3_BUCKET_NAME=zw-transfer-test
+S3_BUCKET_PATH=/shares/
+S3_KEY=dummy-access-key
+S3_SECRET=dummy-secret-key
+EOF
+
+render_compose_config "$BROKEN_S3_BUCKET_PATH_ENV" "$BROKEN_S3_BUCKET_PATH_CONFIG_JSON"
+assert_validation_fails "$BROKEN_S3_BUCKET_PATH_CONFIG_JSON" "negative-s3-bucket-path" "s3.bucketPath must not start or end with a slash" "$BROKEN_S3_BUCKET_PATH_LOG"
 
 echo "Rendered Pingvin config is valid."
