@@ -195,11 +195,11 @@ if scenario == "derived-overrides"
     %w[general appUrl] => "https://files.example.test",
     %w[smtp email] => "sender@example.test",
     %w[smtp username] => "sender@example.test",
-    %w[oauth oidc-usernameClaim] => "preferred_username",
-    %w[email inviteSubject] => "Welkom bij Example Transfer"
+    %w[oauth oidc-usernameClaim] => "preferred_username"
   }
 
   contains_expectations = {
+    %w[email inviteSubject] => "Example Transfer",
     %w[email shareRecipientsMessage] => "Example Transfer",
     %w[email resetPasswordMessage] => "Example Transfer",
     %w[email inviteMessage] => "Example Transfer"
@@ -244,6 +244,9 @@ EXPLICIT_SMTP_CONFIG_JSON="$(make_temp)"
 BROKEN_ENV="$(make_temp)"
 BROKEN_CONFIG_JSON="$(make_temp)"
 BROKEN_LOG="$(make_temp)"
+BROKEN_ADMIN_ENV="$(make_temp)"
+BROKEN_ADMIN_CONFIG_JSON="$(make_temp)"
+BROKEN_ADMIN_LOG="$(make_temp)"
 
 render_compose_config "$ENV_FILE" "$BASE_CONFIG_JSON"
 validate_rendered_config "$BASE_CONFIG_JSON" "base"
@@ -281,6 +284,22 @@ fi
 if ! grep -q "initUser.enabled" "$BROKEN_LOG"; then
   cat "$BROKEN_LOG" >&2
   echo "ERROR: negative validation scenario failed for the wrong reason" >&2
+  exit 1
+fi
+
+cat >"$BROKEN_ADMIN_ENV" <<'EOF'
+INIT_USER_IS_ADMIN=maybe
+EOF
+
+render_compose_config "$BROKEN_ADMIN_ENV" "$BROKEN_ADMIN_CONFIG_JSON"
+if validate_rendered_config "$BROKEN_ADMIN_CONFIG_JSON" "negative-init-user-admin" >"$BROKEN_ADMIN_LOG" 2>&1; then
+  echo "ERROR: negative admin validation scenario unexpectedly passed" >&2
+  exit 1
+fi
+
+if ! grep -q "initUser.isAdmin" "$BROKEN_ADMIN_LOG"; then
+  cat "$BROKEN_ADMIN_LOG" >&2
+  echo "ERROR: negative admin validation scenario failed for the wrong reason" >&2
   exit 1
 fi
 

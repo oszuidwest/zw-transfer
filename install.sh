@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+set -euo pipefail
+
 FUNCTIONS_LIB_URL="https://raw.githubusercontent.com/oszuidwest/bash-functions/main/common-functions.sh"
 REPO_ARCHIVE_URL="https://github.com/oszuidwest/zw-transfer/archive/refs/heads/main.tar.gz"
 
@@ -68,7 +70,7 @@ verify_services_running() {
   return "$failed"
 }
 
-clear
+clear || true
 
 echo -e "${GREEN}ZuidWest Transfer deployment installer${NC}\n"
 
@@ -103,10 +105,10 @@ if [ "$KEEP_CONFIG" == "n" ]; then
   prompt_required "APP_HOSTNAME" "Public hostname" "host"
   prompt_required "SMTP_HOST" "SMTP host" "host"
   prompt_required "SMTP_EMAIL" "SMTP sender address" "email"
-  prompt_secret_required "SMTP_PASSWORD" "SMTP password"
+  prompt_secret "SMTP_PASSWORD" "SMTP password"
   prompt_required "OIDC_DISCOVERY_URI" "OIDC discovery URI" "str"
   prompt_required "OIDC_CLIENT_ID" "OIDC client ID" "str"
-  prompt_secret_required "OIDC_CLIENT_SECRET" "OIDC client secret"
+  prompt_secret "OIDC_CLIENT_SECRET" "OIDC client secret"
 fi
 
 set_timezone Europe/Amsterdam
@@ -164,7 +166,7 @@ prompt_user "START_SERVICES" "y" "Start deployment now? (y/n)" "y/n"
 if [ "$START_SERVICES" == "y" ]; then
   cd "$INSTALL_DIR" || exit
   echo -e "${BLUE}►► Validating Docker Compose configuration${NC}"
-  docker compose --env-file .env config >/tmp/zw-transfer.compose.yml
+  docker compose --env-file .env config -q
 
   if [ "$EXISTING_INSTALL" == "y" ] || containers_running; then
     echo -e "${BLUE}►► Stopping existing containers${NC}"
@@ -178,11 +180,12 @@ if [ "$START_SERVICES" == "y" ]; then
   docker compose --env-file .env up -d
 
   echo -e "${BLUE}►► Verifying service health${NC}"
-  if verify_services_running; then
-    echo -e "${GREEN}✓ All services are up${NC}"
-  else
-    echo -e "${YELLOW}⚠ Some services did not start cleanly. Check 'docker compose logs'.${NC}"
+  if ! verify_services_running; then
+    echo -e "${RED}*** Some services did not start cleanly. Check 'docker compose logs'. ***${NC}"
+    docker compose --env-file .env ps || true
+    exit 1
   fi
+  echo -e "${GREEN}✓ All services are up${NC}"
 
   echo -e "${BLUE}►► Container status${NC}"
   docker compose --env-file .env ps
