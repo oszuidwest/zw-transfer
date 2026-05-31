@@ -50,8 +50,40 @@ jobs:
             echo "update_needed=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Update docker-compose.yml
+      # Upstream publishes the GitHub release before the image build finishes,
+      # so a "new tag" can race ahead of the GHCR manifest. Skip gracefully
+      # when that happens; the next scheduled run will pick it up.
+      - name: Check image availability
         if: steps.compare.outputs.update_needed == 'true'
+        id: image
+        env:
+          VERSION: ${{ steps.latest-version.outputs.version }}
+        run: |
+          set -euo pipefail
+          token="$(curl -fsS 'https://ghcr.io/token?service=ghcr.io&scope=repository:smp46/pingvin-share-x:pull' | jq -r '.token')"
+          status="$(curl -sS -o /dev/null -w '%{http_code}' \
+            -H "Authorization: Bearer ${token}" \
+            -H 'Accept: application/vnd.oci.image.index.v1+json' \
+            -H 'Accept: application/vnd.docker.distribution.manifest.list.v2+json' \
+            -H 'Accept: application/vnd.docker.distribution.manifest.v2+json' \
+            "https://ghcr.io/v2/smp46/pingvin-share-x/manifests/${VERSION}")"
+          case "$status" in
+            200)
+              echo "GHCR image ghcr.io/smp46/pingvin-share-x:${VERSION} is available"
+              echo "available=true" >> "$GITHUB_OUTPUT"
+              ;;
+            404)
+              echo "::warning::Release ${VERSION} is published but the GHCR image is not available yet; will retry on next scheduled run."
+              echo "available=false" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "Unexpected status ${status} from GHCR manifest endpoint for ${VERSION}" >&2
+              exit 1
+              ;;
+          esac
+
+      - name: Update docker-compose.yml
+        if: steps.compare.outputs.update_needed == 'true' && steps.image.outputs.available == 'true'
         run: |
           CURRENT_VERSION="${{ steps.current-version.outputs.version }}"
           LATEST_VERSION="${{ steps.latest-version.outputs.version }}"
@@ -59,15 +91,15 @@ jobs:
           sed -i "s|ghcr.io/smp46/pingvin-share-x:${CURRENT_VERSION}|ghcr.io/smp46/pingvin-share-x:${LATEST_VERSION}|g" docker-compose.yml
 
       - name: Regenerate email patch
-        if: steps.compare.outputs.update_needed == 'true'
+        if: steps.compare.outputs.update_needed == 'true' && steps.image.outputs.available == 'true'
         run: ./scripts/regenerate-email-patch.sh
 
       - name: Validate Compose
-        if: steps.compare.outputs.update_needed == 'true'
+        if: steps.compare.outputs.update_needed == 'true' && steps.image.outputs.available == 'true'
         run: ./scripts/validate-pingvin-config.sh
 
       - name: Open pull request
-        if: steps.compare.outputs.update_needed == 'true'
+        if: steps.compare.outputs.update_needed == 'true' && steps.image.outputs.available == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.latest-version.outputs.version }}
