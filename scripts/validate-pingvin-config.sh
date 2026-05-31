@@ -42,11 +42,14 @@ COMPOSE_ENV_VARS=(
   SHARE_ALLOW_UNAUTHENTICATED_SHARES
   SHARE_MAX_SIZE
   EMAIL_ENABLE_SHARE_RECIPIENTS
+  EMAIL_ENABLE_SHARE_DOWNLOAD_NOTIFICATIONS
   EMAIL_SHARE_RECIPIENTS_SUBJECT
+  EMAIL_SHARE_DOWNLOAD_NOTIFICATION_SUBJECT
   EMAIL_RESET_PASSWORD_SUBJECT
   EMAIL_INVITE_SUBJECT
   EMAIL_REVERSE_SHARE_SUBJECT
   EMAIL_SHARE_RECIPIENTS_MESSAGE
+  EMAIL_SHARE_DOWNLOAD_NOTIFICATION_MESSAGE
   EMAIL_RESET_PASSWORD_MESSAGE
   EMAIL_INVITE_MESSAGE
   EMAIL_REVERSE_SHARE_MESSAGE
@@ -186,11 +189,14 @@ string_paths = [
   %w[share allowUnauthenticatedShares],
   %w[share maxSize],
   %w[email enableShareEmailRecipients],
+  %w[email enableShareDownloadNotifications],
   %w[email shareRecipientsSubject],
+  %w[email shareDownloadNotificationSubject],
   %w[email resetPasswordSubject],
   %w[email inviteSubject],
   %w[email reverseShareSubject],
   %w[email shareRecipientsMessage],
+  %w[email shareDownloadNotificationMessage],
   %w[email resetPasswordMessage],
   %w[email inviteMessage],
   %w[email reverseShareMessage],

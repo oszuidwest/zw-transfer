@@ -84,11 +84,14 @@ configs:
 
       email:
         enableShareEmailRecipients: "${EMAIL_ENABLE_SHARE_RECIPIENTS:-true}"
+        enableShareDownloadNotifications: "${EMAIL_ENABLE_SHARE_DOWNLOAD_NOTIFICATIONS:-true}"
         shareRecipientsSubject: "${EMAIL_SHARE_RECIPIENTS_SUBJECT:-Er staan bestanden voor je klaar}"
+        shareDownloadNotificationSubject: "${EMAIL_SHARE_DOWNLOAD_NOTIFICATION_SUBJECT:-Je bestand is gedownload}"
         resetPasswordSubject: "${EMAIL_RESET_PASSWORD_SUBJECT:-Stel je wachtwoord opnieuw in}"
         inviteSubject: "${EMAIL_INVITE_SUBJECT:-Welkom bij ${APP_NAME:-ZuidWest Transfer}}"
         reverseShareSubject: "${EMAIL_REVERSE_SHARE_SUBJECT:-Nieuwe bestanden via je aanvraaglink}"
         shareRecipientsMessage: "${EMAIL_SHARE_RECIPIENTS_MESSAGE:-Hoi,\n\n{creator} heeft bestanden voor je klaargezet via ${APP_NAME:-ZuidWest Transfer}.\n\nDownload hier:\n{shareUrl}\n\nDe link verloopt {expires}{descBlock}\n\nVerwacht je dit bericht niet? Klik niet op de link en neem contact op met {creatorEmail}.\n\n—\nZuidWest Transfer\nEuropese servers, veilig versleuteld, geen AI-voer. 🇪🇺🫡}"
+        shareDownloadNotificationMessage: "${EMAIL_SHARE_DOWNLOAD_NOTIFICATION_MESSAGE:-Hoi,\n\n{recipientEmail} heeft {fileName} gedownload:\n{shareUrl}\n\n—\nZuidWest Transfer\nEuropese servers, veilig versleuteld, geen AI-voer. 🇪🇺🫡}"
         resetPasswordMessage: "${EMAIL_RESET_PASSWORD_MESSAGE:-Hoi,\n\nStel hier je nieuwe wachtwoord voor ${APP_NAME:-ZuidWest Transfer} in:\n{url}\n\nDe link werkt een uur. Niet zelf aangevraagd? Negeer dit bericht.\n\n—\nZuidWest Transfer\nEuropese servers, veilig versleuteld, geen AI-voer. 🇪🇺🫡}"
         inviteMessage: "${EMAIL_INVITE_MESSAGE:-Hoi,\n\nJe hebt toegang gekregen tot ${APP_NAME:-ZuidWest Transfer}. Accepteer je uitnodiging:\n{url}\n\nLog in met {email} en het tijdelijke wachtwoord: {password}\n\nWijzig je wachtwoord direct na de eerste keer inloggen.\n\n—\nZuidWest Transfer\nEuropese servers, veilig versleuteld, geen AI-voer. 🇪🇺🫡}"
         reverseShareMessage: "${EMAIL_REVERSE_SHARE_MESSAGE:-Hoi,\n\nEr staan nieuwe bestanden klaar via je aanvraaglink:\n{shareUrl}\n\n—\nZuidWest Transfer\nEuropese servers, veilig versleuteld, geen AI-voer. 🇪🇺🫡}"
