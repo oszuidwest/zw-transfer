@@ -50,10 +50,10 @@ let EmailService = EmailService_1 = class EmailService {
             throw new common_1.InternalServerErrorException(this.i18n.t("email.sendFailed"));
         });
     }
-    async sendMailToShareRecipients(recipientEmail, shareId, creator, description, expiration) {
+    async sendMailToShareRecipients(recipientEmail, recipientId, shareId, creator, description, expiration) {
         if (!this.config.get("email.enableShareEmailRecipients"))
             throw new common_1.InternalServerErrorException(this.i18n.t("email.emailServiceDisabled"));
-        const shareUrl = `${this.config.get("general.appUrl")}/s/${shareId}`;
+        const shareUrl = `${this.config.get("general.appUrl")}/s/${shareId}?recipient=${encodeURIComponent(recipientId)}`;
         const lang = "";
         const locale = this.i18n.translate("email.locale", { lang });
         const trimmedDesc = (description ?? "").trim().replace(/\.+$/, "");
@@ -70,6 +70,15 @@ let EmailService = EmailService_1 = class EmailService {
             .replaceAll("{expires}", moment(expiration).unix() != 0
             ? moment(expiration).locale(locale).fromNow()
             : "nooit"));
+    }
+    async sendShareDownloadNotification(creatorEmail, shareId, fileName, recipientEmail) {
+        const shareUrl = `${this.config.get("general.appUrl")}/s/${shareId}`;
+        await this.sendMail(creatorEmail, this.config.get("email.shareDownloadNotificationSubject"), this.config
+            .get("email.shareDownloadNotificationMessage")
+            .replaceAll("\\n", "\n")
+            .replaceAll("{recipientEmail}", recipientEmail)
+            .replaceAll("{fileName}", fileName)
+            .replaceAll("{shareUrl}", shareUrl));
     }
     async sendMailToReverseShareCreator(recipientEmail, shareId) {
         const shareUrl = `${this.config.get("general.appUrl")}/s/${shareId}`;

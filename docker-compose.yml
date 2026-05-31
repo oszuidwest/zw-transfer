@@ -28,7 +28,7 @@ services:
       - no-new-privileges:true
 
   pingvin:
-    image: ghcr.io/smp46/pingvin-share-x:v1.18.1
+    image: ghcr.io/smp46/pingvin-share-x:v1.19.0
     container_name: zw-transfer
     volumes:
       - pingvin_data:/opt/app/backend/data
@@ -48,12 +48,6 @@ services:
     networks:
       - backend
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-fs", "http://localhost:3000/api/health"]
-      interval: 30s
-      timeout: 5s
-      start_period: 90s
-      retries: 3
     security_opt:
       - no-new-privileges:true
 
