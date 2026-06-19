@@ -132,7 +132,12 @@ if [ "$KEEP_CONFIG" == "n" ]; then
   prompt_secret "OIDC_CLIENT_SECRET" "OIDC client secret"
 fi
 
+# Configure host time settings
 set_timezone Europe/Amsterdam
+set_time_sync
+
+# Configure journald storage limits
+set_journald_limits
 
 if [ "$DO_UPDATES" == "y" ]; then
   apt_update --silent
