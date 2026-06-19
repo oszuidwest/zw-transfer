@@ -133,6 +133,8 @@ if [ "$KEEP_CONFIG" == "n" ]; then
 fi
 
 set_timezone Europe/Amsterdam
+set_time_sync
+set_journald_limits
 
 if [ "$DO_UPDATES" == "y" ]; then
   apt_update --silent
