@@ -54,7 +54,7 @@ let EmailService = EmailService_1 = class EmailService {
         if (!this.config.get("email.enableShareEmailRecipients"))
             throw new common_1.InternalServerErrorException(this.i18n.t("email.emailServiceDisabled"));
         const shareUrl = `${this.config.get("general.appUrl")}/s/${shareId}?recipient=${encodeURIComponent(recipientId)}`;
-        const lang = "";
+        const lang = this.config.get("general.defaultLanguage");
         const locale = this.i18n.translate("email.locale", { lang });
         const trimmedDesc = (description ?? "").trim().replace(/\.+$/, "");
         const descBlock = trimmedDesc ? ` en dit bericht werd toegevoegd: "${trimmedDesc}".` : ".";
@@ -101,6 +101,13 @@ let EmailService = EmailService_1 = class EmailService {
             .replaceAll("{url}", loginUrl)
             .replaceAll("{password}", password)
             .replaceAll("{email}", recipientEmail));
+    }
+    async sendVerificationEmail(recipientEmail, token) {
+        const verificationUrl = `${this.config.get("general.appUrl")}/auth/verify/${token}`;
+        await this.sendMail(recipientEmail, this.config.get("email.verificationSubject"), this.config
+            .get("email.verificationMessage")
+            .replaceAll("\\n", "\n")
+            .replaceAll("{url}", verificationUrl));
     }
     async sendTestMail(recipientEmail) {
         const subject = this.i18n.t("email.testSubject");
