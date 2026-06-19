@@ -2,7 +2,8 @@
 
 set -euo pipefail
 
-FUNCTIONS_LIB_URL="https://raw.githubusercontent.com/oszuidwest/bash-functions/main/common-functions.sh"
+BASH_FUNCTIONS_REF="main"
+FUNCTIONS_LIB_URL="https://raw.githubusercontent.com/oszuidwest/bash-functions/${BASH_FUNCTIONS_REF}/common-functions.sh"
 REPO_ARCHIVE_URL="https://github.com/oszuidwest/zw-transfer/archive/refs/heads/main.tar.gz"
 
 FUNCTIONS_LIB_PATH=$(mktemp)
@@ -13,6 +14,13 @@ INSTALL_DIR="${INSTALL_DIR:-/opt/zw-transfer}"
 ENV_FILE="${INSTALL_DIR}/.env"
 
 trap 'rm -f "$FUNCTIONS_LIB_PATH" "$ARCHIVE_PATH"; rm -rf "$EXTRACT_DIR"' EXIT
+
+clear || true
+
+if ! command -v curl >/dev/null 2>&1; then
+  echo "*** curl is required to download the functions library. ***"
+  exit 1
+fi
 
 if ! curl -fsSL -o "$FUNCTIONS_LIB_PATH" "$FUNCTIONS_LIB_URL"; then
   echo "*** Failed to download functions library. Please check your network connection. ***"
@@ -88,8 +96,6 @@ verify_containers_running() {
   return "$failed"
 }
 
-clear || true
-
 echo -e "${GREEN}ZuidWest Transfer deployment installer${NC}\n"
 
 prompt_user "INSTALL_DIR" "$INSTALL_DIR" "Installation directory" "str"
@@ -155,11 +161,20 @@ fi
 tar -xzf "$ARCHIVE_PATH" -C "$EXTRACT_DIR" --strip-components=1
 
 echo -e "${BLUE}►► Installing deployment files${NC}"
+if [ -f "${INSTALL_DIR}/docker-compose.yml" ] && ! file_backup "${INSTALL_DIR}/docker-compose.yml"; then
+  exit 1
+fi
 cp "${EXTRACT_DIR}/docker-compose.yml" "${INSTALL_DIR}/docker-compose.yml"
+if [ -f "${INSTALL_DIR}/Caddyfile" ] && ! file_backup "${INSTALL_DIR}/Caddyfile"; then
+  exit 1
+fi
 cp "${EXTRACT_DIR}/Caddyfile" "${INSTALL_DIR}/Caddyfile"
 cp "${EXTRACT_DIR}/.env.example" "${INSTALL_DIR}/.env.example"
 
 mkdir -p "${INSTALL_DIR}/patches"
+if [ -f "${INSTALL_DIR}/patches/email.service.js" ] && ! file_backup "${INSTALL_DIR}/patches/email.service.js"; then
+  exit 1
+fi
 cp "${EXTRACT_DIR}/patches/email.service.js" "${INSTALL_DIR}/patches/email.service.js"
 
 if [ "$KEEP_CONFIG" == "y" ] && [ -f "$ENV_FILE" ]; then
