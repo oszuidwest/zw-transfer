@@ -132,9 +132,11 @@ if [ "$KEEP_CONFIG" == "n" ]; then
   prompt_secret "OIDC_CLIENT_SECRET" "OIDC client secret"
 fi
 
-# Configure host time settings and journald storage limits
+# Configure host time settings
 set_timezone Europe/Amsterdam
 set_time_sync
+
+# Configure journald storage limits
 set_journald_limits
 
 if [ "$DO_UPDATES" == "y" ]; then
