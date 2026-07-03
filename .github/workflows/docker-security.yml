@@ -20,7 +20,7 @@ jobs:
       images-json: ${{ steps.images.outputs.images-json }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Read image references
         id: images
