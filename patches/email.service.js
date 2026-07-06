@@ -38,12 +38,13 @@ let EmailService = EmailService_1 = class EmailService {
         });
     }
     async sendMail(email, subject, text) {
+        const isHtml = this.config.get("email.sendHtmlEmails");
         await this.getTransporter()
             .sendMail({
             from: `"${this.config.get("general.appName")}" <${this.config.get("smtp.email")}>`,
             to: email,
-            subject,
-            text,
+            subject: subject,
+            [isHtml ? "html" : "text"]: text,
         })
             .catch((e) => {
             this.logger.error(e);
