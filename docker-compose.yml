@@ -28,7 +28,7 @@ services:
       - no-new-privileges:true
 
   pingvin:
-    image: ghcr.io/smp46/pingvin-share-x:v1.21.1
+    image: ghcr.io/smp46/pingvin-share-x:v1.21.2
     container_name: zw-transfer
     volumes:
       - pingvin_data:/opt/app/backend/data
