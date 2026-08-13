@@ -38,11 +38,14 @@ COMPOSE_ENV_VARS=(
   SESSION_DURATION
   DEFAULT_LANGUAGE
   CUSTOM_CSS
+  APPEARANCE_UPLOAD_PROGRESS_STYLE
   SHARE_ALLOW_REGISTRATION
   SHARE_ALLOW_UNAUTHENTICATED_SHARES
+  SHARE_ENABLE_USER_RECIPIENTS
   SHARE_MAX_SIZE
   EMAIL_ENABLE_SHARE_RECIPIENTS
   EMAIL_ENABLE_SHARE_DOWNLOAD_NOTIFICATIONS
+  EMAIL_SHARE_RECIPIENTS_REPLY_TO_CREATOR
   EMAIL_SHARE_RECIPIENTS_SUBJECT
   EMAIL_SHARE_DOWNLOAD_NOTIFICATION_SUBJECT
   EMAIL_RESET_PASSWORD_SUBJECT
@@ -185,11 +188,14 @@ string_paths = [
   %w[general sessionDuration],
   %w[general defaultLanguage],
   %w[appearance customCss],
+  %w[appearance uploadProgressStyle],
   %w[share allowRegistration],
   %w[share allowUnauthenticatedShares],
+  %w[share enableUserRecipients],
   %w[share maxSize],
   %w[email enableShareEmailRecipients],
   %w[email enableShareDownloadNotifications],
+  %w[email shareRecipientsReplyToCreator],
   %w[email shareRecipientsSubject],
   %w[email shareDownloadNotificationSubject],
   %w[email resetPasswordSubject],
@@ -237,6 +243,24 @@ string_paths = [
 string_paths.each do |category, key|
   value = fetch_path(config, scenario, category, key)
   fail!(scenario, "#{category}.#{key} must render as a YAML string, got #{value.class}") unless value.is_a?(String)
+end
+
+upload_progress_style = fetch_path(config, scenario, "appearance", "uploadProgressStyle")
+valid_upload_progress_styles = %w[circle circle-percentage percentage-time]
+unless valid_upload_progress_styles.include?(upload_progress_style)
+  fail!(scenario, "appearance.uploadProgressStyle must be one of #{valid_upload_progress_styles.join(", ")}, got #{upload_progress_style.inspect}")
+end
+
+feature_boolean_paths = [
+  %w[share enableUserRecipients],
+  %w[email shareRecipientsReplyToCreator]
+]
+
+feature_boolean_paths.each do |category, key|
+  value = fetch_path(config, scenario, category, key)
+  unless %w[true false].include?(value)
+    fail!(scenario, "#{category}.#{key} must be exactly \"true\" or \"false\", got #{value.inspect}")
+  end
 end
 
 s3_boolean_paths = [

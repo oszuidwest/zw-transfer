@@ -76,15 +76,18 @@ configs:
 
       appearance:
         customCss: "${CUSTOM_CSS:-footer, div[data-with-border=true]:has(input[type=password]), div[data-with-border=true]:has([id*=-tab-totp]), div[data-with-border=true]:has([id*=-tab-oidc]), .mantine-Group-root:has(input[placeholder=myAwesomeShare]), .mantine-Group-root:has(input[placeholder=myAwesomeShare]) + .mantine-Text-root { display: none !important; } [id*=-panel-recipients] { display: block !important; height: auto !important; overflow: visible !important; } [id*=-panel-recipients] > div { opacity: 1 !important; }}"
+        uploadProgressStyle: "${APPEARANCE_UPLOAD_PROGRESS_STYLE:-percentage-time}"
 
       share:
         allowRegistration: "${SHARE_ALLOW_REGISTRATION:-false}"
         allowUnauthenticatedShares: "${SHARE_ALLOW_UNAUTHENTICATED_SHARES:-false}"
+        enableUserRecipients: "${SHARE_ENABLE_USER_RECIPIENTS:-true}"
         maxSize: "${SHARE_MAX_SIZE:-1000000000000}"
 
       email:
         enableShareEmailRecipients: "${EMAIL_ENABLE_SHARE_RECIPIENTS:-true}"
         enableShareDownloadNotifications: "${EMAIL_ENABLE_SHARE_DOWNLOAD_NOTIFICATIONS:-true}"
+        shareRecipientsReplyToCreator: "${EMAIL_SHARE_RECIPIENTS_REPLY_TO_CREATOR:-true}"
         shareRecipientsSubject: "${EMAIL_SHARE_RECIPIENTS_SUBJECT:-Er staan bestanden voor je klaar}"
         shareDownloadNotificationSubject: "${EMAIL_SHARE_DOWNLOAD_NOTIFICATION_SUBJECT:-Je bestand is gedownload}"
         resetPasswordSubject: "${EMAIL_RESET_PASSWORD_SUBJECT:-Stel je wachtwoord opnieuw in}"
