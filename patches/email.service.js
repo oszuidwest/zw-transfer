@@ -37,7 +37,7 @@ let EmailService = EmailService_1 = class EmailService {
             },
         });
     }
-    async sendMail(email, subject, text) {
+    async sendMail(email, subject, text, replyTo) {
         const isHtml = this.config.get("email.sendHtmlEmails");
         await this.getTransporter()
             .sendMail({
@@ -45,6 +45,7 @@ let EmailService = EmailService_1 = class EmailService {
             to: email,
             subject: subject,
             [isHtml ? "html" : "text"]: text,
+            ...(replyTo && { replyTo }),
         })
             .catch((e) => {
             this.logger.error(e);
@@ -59,6 +60,11 @@ let EmailService = EmailService_1 = class EmailService {
         const locale = this.i18n.translate("email.locale", { lang });
         const trimmedDesc = (description ?? "").trim().replace(/\.+$/, "");
         const descBlock = trimmedDesc ? ` en dit bericht werd toegevoegd: "${trimmedDesc}".` : ".";
+        let replyTo = undefined;
+        if (this.config.get("email.shareRecipientsReplyToCreator") &&
+            creator?.email) {
+            replyTo = `"${creator.username}" <${creator.email}>`;
+        }
         await this.sendMail(recipientEmail, this.config.get("email.shareRecipientsSubject"), this.config
             .get("email.shareRecipientsMessage")
             .replaceAll("\\n", "\n")
@@ -70,7 +76,7 @@ let EmailService = EmailService_1 = class EmailService {
             .replaceAll("{descBlock}", descBlock)
             .replaceAll("{expires}", moment(expiration).unix() != 0
             ? moment(expiration).locale(locale).fromNow()
-            : "nooit"));
+            : "nooit"), replyTo);
     }
     async sendShareDownloadNotification(creatorEmail, shareId, fileName, recipientEmail) {
         const shareUrl = `${this.config.get("general.appUrl")}/s/${shareId}`;

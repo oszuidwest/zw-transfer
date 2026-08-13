@@ -73,7 +73,7 @@ verify_present 'this.i18n.t("email.shareRecipientsCreatorFallback")'
 verify_present '.replaceAll("{desc}", description ?? this.i18n.t("email.shareRecipientsDescFallback"))'
 verify_present '.replaceAll("{descBlock}", descBlock)'
 verify_present 'moment(expiration).locale(locale).fromNow()'
-verify_present ': "nooit"));'
+verify_present ': "nooit"), replyTo);'
 
 verify_absent '?? "Someone"'
 verify_absent '?? "No description"'
