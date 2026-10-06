@@ -71,7 +71,7 @@ Caveats:
 
 `.github/workflows/check-pingvin-release.yml` checks for new stable Pingvin Share X **1.x** releases, updates the Compose tag, regenerates `patches/email.service.js`, validates the rendered config, and opens a PR. Major version upgrades are deferred until the deployment and email patch are ready for them.
 
-Regeneration also runs `scripts/test-email-patch.cjs` inside the pinned image before replacing the generated file. These tests intercept mail delivery and check optional descriptions, Dutch expiration text, template variables, and sender/recipient names without network access.
+Regeneration runs `scripts/test-email-patch.cjs` inside the pinned image, without network access, and only replaces the generated file when the tests pass.
 
 ## Security
 
