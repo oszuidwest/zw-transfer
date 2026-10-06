@@ -18,6 +18,7 @@ REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 COMPOSE_FILE="${REPO_ROOT}/docker-compose.yml"
 PATCH_FILE="${REPO_ROOT}/patches/email.service.patch"
 OUTPUT_FILE="${REPO_ROOT}/patches/email.service.js"
+TEST_FILE="${REPO_ROOT}/scripts/test-email-patch.cjs"
 TARGET_PATH="/opt/app/backend/dist/src/email/email.service.js"
 
 IMAGE="$(grep -oE 'ghcr\.io/smp46/pingvin-share-x:v[0-9.]+' "$COMPOSE_FILE" | head -n1)"
@@ -46,14 +47,11 @@ docker rm --force "$CID" >/dev/null
 # upstream drift.
 patch --no-backup-if-mismatch -d "$TMP_DIR" -p1 -i "$PATCH_FILE"
 
-mkdir -p "$(dirname "$OUTPUT_FILE")"
-cp "${TMP_DIR}/email.service.js" "$OUTPUT_FILE"
-
 # Belt-and-suspenders: confirm the local descBlock/nooit behavior actually
 # landed, while preserving upstream i18n fallback handling.
 verify_present() {
   local needle="$1"
-  if ! grep -qF -- "$needle" "$OUTPUT_FILE"; then
+  if ! grep -qF -- "$needle" "${TMP_DIR}/email.service.js"; then
     echo "ERROR: expected substring missing from patched file: $needle" >&2
     exit 1
   fi
@@ -61,7 +59,7 @@ verify_present() {
 
 verify_absent() {
   local needle="$1"
-  if grep -qF -- "$needle" "$OUTPUT_FILE"; then
+  if grep -qF -- "$needle" "${TMP_DIR}/email.service.js"; then
     echo "ERROR: pre-patch substring still present in patched file: $needle" >&2
     exit 1
   fi
@@ -70,14 +68,24 @@ verify_absent() {
 verify_present 'const trimmedDesc = (description ?? "").trim()'
 verify_present 'en dit bericht werd toegevoegd:'
 verify_present 'this.i18n.t("email.shareRecipientsCreatorFallback")'
-verify_present '.replaceAll("{desc}", description ?? this.i18n.t("email.shareRecipientsDescFallback"))'
-verify_present '.replaceAll("{descBlock}", descBlock)'
+verify_present 'desc: description ?? this.i18n.t("email.shareRecipientsDescFallback"),'
+verify_present '            descBlock,'
 verify_present 'moment(expiration).locale(locale).fromNow()'
-verify_present ': "nooit"), replyTo);'
+verify_present ': "nooit",'
 
 verify_absent '?? "Someone"'
 verify_absent '?? "No description"'
 verify_absent '"in: never"'
 verify_absent 'this.i18n.t("email.shareRecipientsExpiresNeverFallback")'
+
+# Exercise the generated service with the pinned image's dependencies. SMTP is
+# intercepted by the tests, and the container has no network or persistent data.
+docker run --rm --network none --entrypoint node \
+  --mount "type=bind,src=${TMP_DIR}/email.service.js,dst=${TARGET_PATH},readonly" \
+  --mount "type=bind,src=${TEST_FILE},dst=/tmp/test-email-patch.cjs,readonly" \
+  "$IMAGE" --test /tmp/test-email-patch.cjs
+
+mkdir -p "$(dirname "$OUTPUT_FILE")"
+cp "${TMP_DIR}/email.service.js" "$OUTPUT_FILE"
 
 echo "Wrote patched file to: $OUTPUT_FILE"
