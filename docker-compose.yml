@@ -28,7 +28,7 @@ services:
       - no-new-privileges:true
 
   pingvin:
-    image: ghcr.io/smp46/pingvin-share-x:v1.22.4
+    image: ghcr.io/smp46/pingvin-share-x:v2.0.0
     container_name: zw-transfer
     volumes:
       - pingvin_data:/opt/app/backend/data
@@ -69,24 +69,26 @@ configs:
       general:
         appName: "${APP_NAME:-ZuidWest Transfer}"
         appUrl: "${APP_URL:-https://${APP_HOSTNAME:-transfer.example.org}}"
-        secureCookies: "${SECURE_COOKIES:-true}"
         showHomePage: "${SHOW_HOME_PAGE:-false}"
-        sessionDuration: "${SESSION_DURATION:-3 months}"
         defaultLanguage: "${DEFAULT_LANGUAGE:-nl-BE}"
+
+      security:
+        sessionDuration: "${SESSION_DURATION:-3 months}"
+        secureCookies: "${SECURE_COOKIES:-true}"
+        allowRegistration: "${SHARE_ALLOW_REGISTRATION:-false}"
+        allowUnauthenticatedShares: "${SHARE_ALLOW_UNAUTHENTICATED_SHARES:-false}"
 
       appearance:
         customCss: "${CUSTOM_CSS:-footer, div[data-with-border=true]:has(input[type=password]), div[data-with-border=true]:has([id*=-tab-totp]), div[data-with-border=true]:has([id*=-tab-oidc]), .mantine-Group-root:has(input[placeholder=myAwesomeShare]), .mantine-Group-root:has(input[placeholder=myAwesomeShare]) + .mantine-Text-root { display: none !important; } [id*=-panel-recipients] { display: block !important; height: auto !important; overflow: visible !important; } [id*=-panel-recipients] > div { opacity: 1 !important; }}"
         uploadProgressStyle: "${APPEARANCE_UPLOAD_PROGRESS_STYLE:-percentage-time}"
 
       share:
-        allowRegistration: "${SHARE_ALLOW_REGISTRATION:-false}"
-        allowUnauthenticatedShares: "${SHARE_ALLOW_UNAUTHENTICATED_SHARES:-false}"
+        enableShareEmailRecipients: "${EMAIL_ENABLE_SHARE_RECIPIENTS:-true}"
+        enableShareDownloadNotifications: "${EMAIL_ENABLE_SHARE_DOWNLOAD_NOTIFICATIONS:-true}"
         enableUserRecipients: "${SHARE_ENABLE_USER_RECIPIENTS:-true}"
         maxSize: "${SHARE_MAX_SIZE:-1000000000000}"
 
       email:
-        enableShareEmailRecipients: "${EMAIL_ENABLE_SHARE_RECIPIENTS:-true}"
-        enableShareDownloadNotifications: "${EMAIL_ENABLE_SHARE_DOWNLOAD_NOTIFICATIONS:-true}"
         shareRecipientsReplyToCreator: "${EMAIL_SHARE_RECIPIENTS_REPLY_TO_CREATOR:-true}"
         shareRecipientsSubject: "${EMAIL_SHARE_RECIPIENTS_SUBJECT:-Er staan bestanden voor je klaar}"
         shareDownloadNotificationSubject: "${EMAIL_SHARE_DOWNLOAD_NOTIFICATION_SUBJECT:-Je bestand is gedownload}"
