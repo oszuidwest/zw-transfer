@@ -60,14 +60,16 @@ Uploads land in the `pingvin_data` volume by default. To use S3-compatible stora
 
 Caveats:
 
-- On an S3-backed share, "download all" currently returns HTTP 500 (`Error creating ZIP file`). The upstream owner has acknowledged this and intends to fix it, since the backend already proxies S3. Until a release lands, recipients of S3 shares must download files individually. See [upstream #81](https://github.com/smp46/pingvin-share-x/issues/81).
-- Keep the bucket private; Pingvin streams everything through its backend, so public reads would bypass share authorization.
+- Before upgrading an S3-backed deployment to v2, configure [bucket CORS](https://smp46.github.io/pingvin-share-x/setup/s3/#cors-configuration) for the site's origin. Individual uploads and downloads now use short-lived presigned URLs directly from the browser; ZIP downloads are assembled by the backend.
+- Keep the bucket private; public reads would bypass share authorization.
 - Enabling S3 does not migrate existing files.
 - For Backblaze B2 and some non-AWS providers, set `S3_USE_CHECKSUM=false`.
 
 ## Version updates
 
 `.github/workflows/check-pingvin-release.yml` checks for new Pingvin Share X releases, updates the Compose tag, regenerates `patches/email.service.js`, validates the rendered config, and opens a PR.
+
+Regeneration also runs `scripts/test-email-patch.cjs` inside the pinned image before replacing the generated file. These tests intercept mail delivery and check optional descriptions, Dutch expiration text, template variables, and sender/recipient names without network access.
 
 ## Security
 
