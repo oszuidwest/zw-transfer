@@ -67,7 +67,7 @@ Caveats:
 
 ## Version updates
 
-`.github/workflows/check-pingvin-release.yml` checks for new Pingvin Share X releases, updates the Compose tag, regenerates `patches/email.service.js`, validates the rendered config, and opens a PR.
+`.github/workflows/check-pingvin-release.yml` checks for new stable Pingvin Share X **1.x** releases, updates the Compose tag, regenerates `patches/email.service.js`, validates the rendered config, and opens a PR. Major version upgrades are deferred until the deployment and email patch are ready for them.
 
 ## Security
 

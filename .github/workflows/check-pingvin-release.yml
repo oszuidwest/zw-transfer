@@ -27,12 +27,26 @@ jobs:
           echo "Current version: ${CURRENT_VERSION}"
           echo "version=${CURRENT_VERSION}" >> "$GITHUB_OUTPUT"
 
-      - name: Get latest Pingvin Share X version
+      - name: Get latest stable Pingvin Share X 1.x version
         id: latest-version
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          LATEST_VERSION="$(gh api repos/smp46/pingvin-share-x/releases/latest --jq '.tag_name')"
+          set -euo pipefail
+          # Stay on 1.x until the deployment and email patch are ready for 2.x.
+          LATEST_VERSION="$(gh api --paginate --slurp repos/smp46/pingvin-share-x/releases | jq -r '
+            [ .[][]
+              | select(.draft == false and .prerelease == false)
+              | .tag_name
+              | select(test("^v1\\.[0-9]+\\.[0-9]+$"))
+            ]
+            | sort_by(ltrimstr("v") | split(".") | map(tonumber))
+            | last // empty
+          ')"
+          if [ -z "$LATEST_VERSION" ]; then
+            echo "::error::No stable Pingvin Share X 1.x release found."
+            exit 1
+          fi
           echo "Latest version: ${LATEST_VERSION}"
           echo "version=${LATEST_VERSION}" >> "$GITHUB_OUTPUT"
 
