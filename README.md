@@ -73,5 +73,5 @@ Caveats:
 
 - Containers run with `no-new-privileges`; Caddy drops all capabilities except `NET_BIND_SERVICE`.
 - The `Docker Security` workflow scans both images with Trivy (Pingvin: OS + app deps; Caddy: OS only) and uploads SARIF to GitHub Security. Findings are surfaced for review and do not block deployments.
-- SSO-only is enforced at both layers: app (`OAUTH_DISABLE_PASSWORD=true`, `SHARE_ALLOW_REGISTRATION=false`, `OAUTH_IGNORE_TOTP=true`) and proxy (Caddy redirects `/auth/signIn` to OIDC, blocks OAuth unlink and TOTP endpoints, adds `X-Robots-Tag: noindex`). Do not change password/registration/TOTP defaults without updating the Caddy policy.
+- SSO-only is enforced at both layers: app (`OAUTH_DISABLE_PASSWORD=true`, `SHARE_ALLOW_REGISTRATION=false`, `OAUTH_IGNORE_TOTP=true`) and proxy (Caddy redirects `/auth/signIn` to OIDC, blocks OAuth unlink, TOTP and self-service account edits (`PATCH /api/users/me`, which in 1.x lets users change their own email address), adds `X-Robots-Tag: noindex`). Do not change password/registration/TOTP defaults without updating the Caddy policy.
 - For mail deliverability, keep DKIM on at the provider and use a strict SPF record (e.g. `v=spf1 mx -all`) for the sending domain.

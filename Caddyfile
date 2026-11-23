@@ -9,6 +9,12 @@
 		path /api/auth/totp/*
 	}
 	respond @totp_api "TOTP is disabled for SSO-only login." 403
+	@own_account_update {
+		method PATCH
+		path /api/users/me /api/users/me/
+	}
+	header @own_account_update Content-Type "application/json; charset=utf-8"
+	respond @own_account_update `{"statusCode":403,"message":"Je naam en e-mailadres komen uit je Microsoft-account. Je kunt ze hier niet wijzigen."}` 403
 	redir /auth/signIn /api/oauth/auth/oidc 302
 	encode zstd gzip
 	reverse_proxy pingvin:3000
