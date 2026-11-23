@@ -45,6 +45,8 @@ docker compose pull && docker compose up -d
 
 Changes to the inline `pingvin_config` in `docker-compose.yml` only take effect on full recreate. Run `docker compose --env-file .env up -d --force-recreate pingvin`; a plain `restart` reuses the previously rendered config file.
 
+Caddy reads `Caddyfile` only at startup, and Compose does not recreate it when only that bind-mounted file changes. After a `Caddyfile` change, run `docker compose --env-file .env up -d --force-recreate caddy`. The installer runs a full `down` and `up`, so a re-run applies both.
+
 Validate before deploying:
 
 ```sh
