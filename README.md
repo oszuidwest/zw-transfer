@@ -69,7 +69,7 @@ Caveats:
 
 ## Version updates
 
-`.github/workflows/check-pingvin-release.yml` checks for new stable Pingvin Share X **1.x** releases, updates the Compose tag, regenerates `patches/email.service.js`, validates the rendered config, and opens a PR. Major version upgrades are deferred until the deployment and email patch are ready for them.
+`.github/workflows/check-pingvin-release.yml` checks for new stable Pingvin Share X **2.x** releases, updates the Compose tag, regenerates `patches/email.service.js`, validates the rendered config, and opens a PR. Major version upgrades are deferred until the deployment and email patch are ready for them.
 
 Regeneration runs `scripts/test-email-patch.cjs` inside the pinned image, without network access, and only replaces the generated file when the tests pass.
 
@@ -77,5 +77,5 @@ Regeneration runs `scripts/test-email-patch.cjs` inside the pinned image, withou
 
 - Containers run with `no-new-privileges`; Caddy drops all capabilities except `NET_BIND_SERVICE`.
 - The `Docker Security` workflow scans both images with Trivy (Pingvin: OS + app deps; Caddy: OS only) and uploads SARIF to GitHub Security. Findings are surfaced for review and do not block deployments.
-- SSO-only is enforced at both layers: app (`OAUTH_DISABLE_PASSWORD=true`, `SHARE_ALLOW_REGISTRATION=false`, `OAUTH_IGNORE_TOTP=true`) and proxy (Caddy redirects `/auth/signIn` to OIDC, blocks OAuth unlink, TOTP and self-service account edits (`PATCH /api/users/me`, which in 1.x lets users change their own email address), adds `X-Robots-Tag: noindex`). Do not change password/registration/TOTP defaults without updating the Caddy policy.
+- SSO-only is enforced at both layers: app (`OAUTH_DISABLE_PASSWORD=true`, `SHARE_ALLOW_REGISTRATION=false`, `OAUTH_IGNORE_TOTP=true`) and proxy (Caddy redirects `/auth/signIn` to OIDC, blocks OAuth unlink, TOTP and self-service account edits (`PATCH /api/users/me`, so display name, username and email always come from the identity provider), adds `X-Robots-Tag: noindex`). Do not change password/registration/TOTP defaults without updating the Caddy policy.
 - For mail deliverability, keep DKIM on at the provider and use a strict SPF record (e.g. `v=spf1 mx -all`) for the sending domain.
