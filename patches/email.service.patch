@@ -1,6 +1,6 @@
 --- a/email.service.js
 +++ b/email.service.js
-@@ -58,6 +58,8 @@
+@@ -69,6 +69,8 @@
          const shareUrl = `${this.config.get("general.appUrl")}/s/${shareId}?recipient=${encodeURIComponent(recipientId)}`;
          const lang = this.config.get("general.defaultLanguage");
          const locale = this.i18n.translate("email.locale", { lang });
@@ -9,13 +9,16 @@
          let replyTo = undefined;
          if (this.config.get("email.shareRecipientsReplyToCreator") &&
              creator?.email) {
-@@ -73,9 +75,10 @@
-             .replaceAll("{creatorEmail}", creator?.email ?? "")
-             .replaceAll("{shareUrl}", shareUrl)
-             .replaceAll("{desc}", description ?? this.i18n.t("email.shareRecipientsDescFallback"))
-+            .replaceAll("{descBlock}", descBlock)
-             .replaceAll("{expires}", moment(expiration).unix() != 0
-             ? moment(expiration).locale(locale).fromNow()
--            : this.i18n.t("email.shareRecipientsExpiresNeverFallback")), replyTo);
-+            : "nooit"), replyTo);
-     }
+@@ -86,10 +88,11 @@
+             creatorEmail: creator?.email ?? "",
+             shareUrl,
+             desc: description ?? this.i18n.t("email.shareRecipientsDescFallback"),
++            descBlock,
+             expires: moment(expiration).unix() != 0
+                 ? moment(expiration).locale(locale).fromNow()
+-                : this.i18n.t("email.shareRecipientsExpiresNeverFallback"),
++                : "nooit",
+             name: recipientName ?? "",
+             recipient: recipientName ?? "",
+             recipientEmail,
+             email: recipientEmail,

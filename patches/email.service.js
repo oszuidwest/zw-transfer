@@ -37,12 +37,23 @@ let EmailService = EmailService_1 = class EmailService {
             },
         });
     }
-    async sendMail(email, subject, text, replyTo) {
+    getFromAddress() {
+        const appName = this.config.get("general.appName")?.trim();
+        const address = this.config.get("smtp.email");
+        return appName ? { name: appName, address } : address;
+    }
+    formatTemplate(template, vars) {
+        return template
+            .replaceAll("\\n", "\n")
+            .replace(/\{([a-zA-Z0-9_-]+)\}/g, (match, key) => vars[key] ?? match);
+    }
+    async sendMail(email, subject, text, replyTo, recipientName) {
         const isHtml = this.config.get("email.sendHtmlEmails");
+        const recipient = recipientName?.trim();
         await this.getTransporter()
             .sendMail({
-            from: `"${this.config.get("general.appName")}" <${this.config.get("smtp.email")}>`,
-            to: email,
+            from: this.getFromAddress(),
+            to: recipient ? { name: recipient, address: email } : email,
             subject: subject,
             [isHtml ? "html" : "text"]: text,
             ...(replyTo && { replyTo }),
@@ -52,8 +63,8 @@ let EmailService = EmailService_1 = class EmailService {
             throw new common_1.InternalServerErrorException(this.i18n.t("email.sendFailed"));
         });
     }
-    async sendMailToShareRecipients(recipientEmail, recipientId, shareId, creator, description, expiration) {
-        if (!this.config.get("email.enableShareEmailRecipients"))
+    async sendMailToShareRecipients(recipientEmail, recipientId, shareId, creator, description, expiration, recipientName) {
+        if (!this.config.get("share.enableShareEmailRecipients"))
             throw new common_1.InternalServerErrorException(this.i18n.t("email.emailServiceDisabled"));
         const shareUrl = `${this.config.get("general.appUrl")}/s/${shareId}?recipient=${encodeURIComponent(recipientId)}`;
         const lang = this.config.get("general.defaultLanguage");
@@ -63,65 +74,95 @@ let EmailService = EmailService_1 = class EmailService {
         let replyTo = undefined;
         if (this.config.get("email.shareRecipientsReplyToCreator") &&
             creator?.email) {
-            replyTo = `"${creator.username}" <${creator.email}>`;
+            const creatorName = creator.displayName || creator.username;
+            replyTo = creatorName
+                ? { name: creatorName, address: creator.email }
+                : creator.email;
         }
-        await this.sendMail(recipientEmail, this.config.get("email.shareRecipientsSubject"), this.config
-            .get("email.shareRecipientsMessage")
-            .replaceAll("\\n", "\n")
-            .replaceAll("{creator}", creator?.username ??
-            this.i18n.t("email.shareRecipientsCreatorFallback"))
-            .replaceAll("{creatorEmail}", creator?.email ?? "")
-            .replaceAll("{shareUrl}", shareUrl)
-            .replaceAll("{desc}", description ?? this.i18n.t("email.shareRecipientsDescFallback"))
-            .replaceAll("{descBlock}", descBlock)
-            .replaceAll("{expires}", moment(expiration).unix() != 0
-            ? moment(expiration).locale(locale).fromNow()
-            : "nooit"), replyTo);
+        const vars = {
+            creator: creator?.displayName ||
+                creator?.username ||
+                this.i18n.t("email.shareRecipientsCreatorFallback"),
+            creatorEmail: creator?.email ?? "",
+            shareUrl,
+            desc: description ?? this.i18n.t("email.shareRecipientsDescFallback"),
+            descBlock,
+            expires: moment(expiration).unix() != 0
+                ? moment(expiration).locale(locale).fromNow()
+                : "nooit",
+            name: recipientName ?? "",
+            recipient: recipientName ?? "",
+            recipientEmail,
+            email: recipientEmail,
+        };
+        await this.sendMail(recipientEmail, this.formatTemplate(this.config.get("email.shareRecipientsSubject"), vars), this.formatTemplate(this.config.get("email.shareRecipientsMessage"), vars), replyTo, recipientName);
     }
-    async sendShareDownloadNotification(creatorEmail, shareId, fileName, recipientEmail) {
+    async sendShareDownloadNotification(creatorEmail, shareId, fileName, recipientEmail, creatorName, recipientName) {
         const shareUrl = `${this.config.get("general.appUrl")}/s/${shareId}`;
-        await this.sendMail(creatorEmail, this.config.get("email.shareDownloadNotificationSubject"), this.config
-            .get("email.shareDownloadNotificationMessage")
-            .replaceAll("\\n", "\n")
-            .replaceAll("{recipientEmail}", recipientEmail)
-            .replaceAll("{fileName}", fileName)
-            .replaceAll("{shareUrl}", shareUrl));
+        const downloader = recipientName
+            ? `${recipientName} (${recipientEmail})`
+            : recipientEmail;
+        const vars = {
+            recipient: downloader,
+            recipientEmail,
+            fileName,
+            shareUrl,
+            creator: creatorName ?? "",
+            name: creatorName ?? "",
+        };
+        await this.sendMail(creatorEmail, this.formatTemplate(this.config.get("email.shareDownloadNotificationSubject"), vars), this.formatTemplate(this.config.get("email.shareDownloadNotificationMessage"), vars), undefined, creatorName);
     }
-    async sendMailToReverseShareCreator(recipientEmail, shareId) {
+    async sendMailToReverseShareCreator(recipientEmail, shareId, recipientName) {
         const shareUrl = `${this.config.get("general.appUrl")}/s/${shareId}`;
-        await this.sendMail(recipientEmail, this.config.get("email.reverseShareSubject"), this.config
-            .get("email.reverseShareMessage")
-            .replaceAll("\\n", "\n")
-            .replaceAll("{shareUrl}", shareUrl));
+        const vars = {
+            shareUrl,
+            name: recipientName ?? "",
+            creator: recipientName ?? "",
+            recipient: recipientName ?? "",
+            email: recipientEmail,
+        };
+        await this.sendMail(recipientEmail, this.formatTemplate(this.config.get("email.reverseShareSubject"), vars), this.formatTemplate(this.config.get("email.reverseShareMessage"), vars), undefined, recipientName);
     }
-    async sendResetPasswordEmail(recipientEmail, token) {
+    async sendResetPasswordEmail(recipientEmail, token, recipientName) {
         const resetPasswordUrl = `${this.config.get("general.appUrl")}/auth/resetPassword/${token}`;
-        await this.sendMail(recipientEmail, this.config.get("email.resetPasswordSubject"), this.config
-            .get("email.resetPasswordMessage")
-            .replaceAll("\\n", "\n")
-            .replaceAll("{url}", resetPasswordUrl));
+        const vars = {
+            url: resetPasswordUrl,
+            name: recipientName ?? "",
+            username: recipientName ?? "",
+            displayName: recipientName ?? "",
+            email: recipientEmail,
+        };
+        await this.sendMail(recipientEmail, this.formatTemplate(this.config.get("email.resetPasswordSubject"), vars), this.formatTemplate(this.config.get("email.resetPasswordMessage"), vars), undefined, recipientName);
     }
-    async sendInviteEmail(recipientEmail, password) {
+    async sendInviteEmail(recipientEmail, password, recipientName) {
         const loginUrl = `${this.config.get("general.appUrl")}/auth/signIn`;
-        await this.sendMail(recipientEmail, this.config.get("email.inviteSubject"), this.config
-            .get("email.inviteMessage")
-            .replaceAll("{url}", loginUrl)
-            .replaceAll("{password}", password)
-            .replaceAll("{email}", recipientEmail));
+        const vars = {
+            url: loginUrl,
+            password,
+            email: recipientEmail,
+            name: recipientName ?? "",
+            username: recipientName ?? "",
+            displayName: recipientName ?? "",
+        };
+        await this.sendMail(recipientEmail, this.formatTemplate(this.config.get("email.inviteSubject"), vars), this.formatTemplate(this.config.get("email.inviteMessage"), vars), undefined, recipientName);
     }
-    async sendVerificationEmail(recipientEmail, token) {
+    async sendVerificationEmail(recipientEmail, token, recipientName) {
         const verificationUrl = `${this.config.get("general.appUrl")}/auth/verify/${token}`;
-        await this.sendMail(recipientEmail, this.config.get("email.verificationSubject"), this.config
-            .get("email.verificationMessage")
-            .replaceAll("\\n", "\n")
-            .replaceAll("{url}", verificationUrl));
+        const vars = {
+            url: verificationUrl,
+            name: recipientName ?? "",
+            username: recipientName ?? "",
+            displayName: recipientName ?? "",
+            email: recipientEmail,
+        };
+        await this.sendMail(recipientEmail, this.formatTemplate(this.config.get("email.verificationSubject"), vars), this.formatTemplate(this.config.get("email.verificationMessage"), vars), undefined, recipientName);
     }
     async sendTestMail(recipientEmail) {
         const subject = this.i18n.t("email.testSubject");
         const text = this.i18n.t("email.testText");
         await this.getTransporter()
             .sendMail({
-            from: `"${this.config.get("general.appName")}" <${this.config.get("smtp.email")}>`,
+            from: this.getFromAddress(),
             to: recipientEmail,
             subject,
             text,

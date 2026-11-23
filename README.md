@@ -62,18 +62,20 @@ Uploads land in the `pingvin_data` volume by default. To use S3-compatible stora
 
 Caveats:
 
-- On an S3-backed share, "download all" currently returns HTTP 500 (`Error creating ZIP file`). The upstream owner has acknowledged this and intends to fix it, since the backend already proxies S3. Until a release lands, recipients of S3 shares must download files individually. See [upstream #81](https://github.com/smp46/pingvin-share-x/issues/81).
-- Keep the bucket private; Pingvin streams everything through its backend, so public reads would bypass share authorization.
+- Before upgrading an S3-backed deployment to v2, configure [bucket CORS](https://smp46.github.io/pingvin-share-x/setup/s3/#cors-configuration) for the site's origin. Individual uploads and downloads now use short-lived presigned URLs directly from the browser; ZIP downloads are assembled by the backend.
+- Keep the bucket private; public reads would bypass share authorization.
 - Enabling S3 does not migrate existing files.
 - For Backblaze B2 and some non-AWS providers, set `S3_USE_CHECKSUM=false`.
 
 ## Version updates
 
-`.github/workflows/check-pingvin-release.yml` checks for new stable Pingvin Share X **1.x** releases, updates the Compose tag, regenerates `patches/email.service.js`, validates the rendered config, and opens a PR. Major version upgrades are deferred until the deployment and email patch are ready for them.
+`.github/workflows/check-pingvin-release.yml` checks for new stable Pingvin Share X **2.x** releases, updates the Compose tag, regenerates `patches/email.service.js`, validates the rendered config, and opens a PR. Major version upgrades are deferred until the deployment and email patch are ready for them.
+
+Regeneration runs `scripts/test-email-patch.cjs` inside the pinned image, without network access, and only replaces the generated file when the tests pass.
 
 ## Security
 
 - Containers run with `no-new-privileges`; Caddy drops all capabilities except `NET_BIND_SERVICE`.
 - The `Docker Security` workflow scans both images with Trivy (Pingvin: OS + app deps; Caddy: OS only) and uploads SARIF to GitHub Security. Findings are surfaced for review and do not block deployments.
-- SSO-only is enforced at both layers: app (`OAUTH_DISABLE_PASSWORD=true`, `SHARE_ALLOW_REGISTRATION=false`, `OAUTH_IGNORE_TOTP=true`) and proxy (Caddy redirects `/auth/signIn` to OIDC, blocks OAuth unlink, TOTP and self-service account edits (`PATCH /api/users/me`, which in 1.x lets users change their own email address), adds `X-Robots-Tag: noindex`). Do not change password/registration/TOTP defaults without updating the Caddy policy.
+- SSO-only is enforced at both layers: app (`OAUTH_DISABLE_PASSWORD=true`, `SHARE_ALLOW_REGISTRATION=false`, `OAUTH_IGNORE_TOTP=true`) and proxy (Caddy redirects `/auth/signIn` to OIDC, blocks OAuth unlink, TOTP and self-service account edits (`PATCH /api/users/me`, so users cannot change their own display name, username or email; Pingvin sets username and email at the first SSO login and does not sync them afterwards, so only an administrator can change them), adds `X-Robots-Tag: noindex`). Do not change password/registration/TOTP defaults without updating the Caddy policy.
 - For mail deliverability, keep DKIM on at the provider and use a strict SPF record (e.g. `v=spf1 mx -all`) for the sending domain.
